@@ -37,6 +37,7 @@ class Donor extends Model
         'total_donated',
         'next_follow_up_at',
         'metadata',
+        'tags',
     ];
 
     protected function casts(): array
@@ -52,6 +53,7 @@ class Donor extends Model
             'total_donated' => 'decimal:2',
             'next_follow_up_at' => 'datetime',
             'metadata' => 'array',
+            'tags' => 'array',
         ];
     }
 
@@ -135,6 +137,29 @@ class Donor extends Model
     public function scopeCallable(Builder $query): Builder
     {
         return $query->where('do_not_call', false);
+    }
+
+    public function scopeWithTag(Builder $query, string $tag): Builder
+    {
+        return $query->whereJsonContains('tags', $tag);
+    }
+
+    public function hasTag(string $tag): bool
+    {
+        return in_array($tag, $this->tags ?? [], true);
+    }
+
+    public function addTags(array $tags): void
+    {
+        $merged = collect($this->tags ?? [])
+            ->merge($tags)
+            ->map(fn ($t) => strtolower(trim((string) $t)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->tags = $merged;
     }
 
     /**

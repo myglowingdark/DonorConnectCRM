@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserRole::class,
             'org.selected' => EnsureOrganizationSelected::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'razorpay/webhook/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

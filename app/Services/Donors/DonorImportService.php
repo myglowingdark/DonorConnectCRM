@@ -115,6 +115,16 @@ class DonorImportService
                         ->first();
                 }
 
+                $rawTags = trim((string) ($row['tags'] ?? $row['tag'] ?? ''));
+                $rowTags = $rawTags !== ''
+                    ? collect(preg_split('/[|,;]+/', $rawTags) ?: [])
+                        ->map(fn ($t) => strtolower(trim($t)))
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all()
+                    : [];
+
                 $payload = [
                     'full_name' => $name,
                     'phone' => $phone !== '' ? $phone : ($existing?->phone),
@@ -125,7 +135,13 @@ class DonorImportService
                 ];
 
                 if ($existing) {
-                    $existing->update($payload);
+                    $tags = collect($existing->tags ?? [])
+                        ->merge(['imported'])
+                        ->merge($rowTags)
+                        ->unique()
+                        ->values()
+                        ->all();
+                    $existing->update([...$payload, 'tags' => $tags]);
                     $importedDonorIds[] = $existing->id;
                     $updated++;
                 } else {
@@ -143,6 +159,7 @@ class DonorImportService
                         'do_not_call' => false,
                         'country' => 'India',
                         'total_donated' => 0,
+                        'tags' => array_values(array_unique(array_merge(['imported'], $rowTags))),
                         ...$payload,
                     ]);
                     $importedDonorIds[] = $donor->id;

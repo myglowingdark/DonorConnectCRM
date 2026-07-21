@@ -120,17 +120,88 @@ export default function UsersIndex({
                 </button>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
                 <input
                     defaultValue={filters.search || ''}
                     placeholder="Search name, email, phone"
                     className="w-full max-w-md rounded-xl border-slate-200"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                            router.get(route('users.index'), { search: e.target.value }, { preserveState: true });
+                            router.get(
+                                route('users.index'),
+                                { ...filters, search: e.target.value },
+                                { preserveState: true },
+                            );
                         }
                     }}
                 />
+                <select
+                    className="rounded-xl border-slate-200"
+                    value={filters.role || ''}
+                    onChange={(e) =>
+                        router.get(route('users.index'), { ...filters, role: e.target.value || undefined }, { preserveState: true })
+                    }
+                >
+                    <option value="">All roles</option>
+                    {roles.map((r) => (
+                        <option key={r.value} value={r.value}>
+                            {r.label}
+                        </option>
+                    ))}
+                </select>
+                {canManageAllOrganizations && (
+                    <select
+                        className="rounded-xl border-slate-200"
+                        value={filters.organization_id || ''}
+                        onChange={(e) =>
+                            router.get(
+                                route('users.index'),
+                                { ...filters, organization_id: e.target.value || undefined },
+                                { preserveState: true },
+                            )
+                        }
+                    >
+                        <option value="">All organizations</option>
+                        {allOrganizations.map((org) => (
+                            <option key={org.id} value={org.id}>
+                                {org.name}
+                            </option>
+                        ))}
+                    </select>
+                )}
+                <select
+                    className="rounded-xl border-slate-200"
+                    value={filters.language || ''}
+                    onChange={(e) =>
+                        router.get(route('users.index'), { ...filters, language: e.target.value || undefined }, { preserveState: true })
+                    }
+                >
+                    <option value="">Any language</option>
+                    {languages.map((lang) => (
+                        <option key={lang.value} value={lang.value}>
+                            {lang.label}
+                        </option>
+                    ))}
+                </select>
+                {isSuperAdmin && (
+                    <label className="flex items-center gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            checked={!!filters.is_internal_telecaller}
+                            onChange={(e) =>
+                                router.get(
+                                    route('users.index'),
+                                    {
+                                        ...filters,
+                                        is_internal_telecaller: e.target.checked ? 1 : undefined,
+                                    },
+                                    { preserveState: true },
+                                )
+                            }
+                        />
+                        Internal only
+                    </label>
+                )}
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">

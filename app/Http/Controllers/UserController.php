@@ -53,6 +53,19 @@ class UserController extends Controller
             $query->where('role', $request->string('role'));
         }
 
+        if ($request->boolean('is_internal_telecaller')) {
+            $query->where('is_internal_telecaller', true);
+        }
+
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        if ($request->filled('language')) {
+            $code = $request->string('language')->toString();
+            $query->whereJsonContains('languages', $code);
+        }
+
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search) {
@@ -82,7 +95,9 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search', 'role', 'organization_id']),
+            'filters' => $request->only([
+                'search', 'role', 'organization_id', 'is_internal_telecaller', 'is_active', 'language',
+            ]),
             'roles' => collect(UserRole::cases())
                 ->when(
                     ! $actor->isSuperAdmin(),

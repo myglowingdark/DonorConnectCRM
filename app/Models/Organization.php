@@ -21,6 +21,10 @@ class Organization extends Model
         'currency',
         'is_active',
         'donors_limit',
+        'razorpay_key_id',
+        'razorpay_key_secret',
+        'razorpay_webhook_secret',
+        'razorpay_enabled',
     ];
 
     protected function casts(): array
@@ -28,6 +32,9 @@ class Organization extends Model
         return [
             'is_active' => 'boolean',
             'donors_limit' => 'integer',
+            'razorpay_enabled' => 'boolean',
+            'razorpay_key_secret' => 'encrypted',
+            'razorpay_webhook_secret' => 'encrypted',
         ];
     }
 
@@ -81,6 +88,11 @@ class Organization extends Model
     public function messagingSetting(): HasOne
     {
         return $this->hasOne(OrganizationMessagingSetting::class);
+    }
+
+    public function razorpayPayments(): HasMany
+    {
+        return $this->hasMany(RazorpayPayment::class);
     }
 
     public function remainingDonorSlots(): ?int

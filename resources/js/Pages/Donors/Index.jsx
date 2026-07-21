@@ -21,9 +21,25 @@ export default function DonorsIndex({
     nextToCall = null,
     queueStats = {},
     isVolunteer = false,
+    campaigns = [],
+    volunteers = [],
+    availableTags = [],
 }) {
     const { auth } = usePage().props;
     const [search, setSearch] = useState(filters.search || '');
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [advanced, setAdvanced] = useState({
+        min_amount: filters.min_amount || '',
+        max_amount: filters.max_amount || '',
+        donated_after: filters.donated_after || '',
+        donated_before: filters.donated_before || '',
+        last_called_after: filters.last_called_after || '',
+        last_called_before: filters.last_called_before || '',
+        last_called_by: filters.last_called_by || '',
+        campaign_id: filters.campaign_id || '',
+        tag: filters.tag || '',
+        was_transferred: filters.was_transferred || '',
+    });
     const volunteerView = isVolunteer || auth.user?.role === 'volunteer';
 
     const applyFilters = (next = {}) => {
@@ -38,6 +54,56 @@ export default function DonorsIndex({
 
         router.get(route('donors.index'), payload, { preserveState: true, replace: true });
     };
+
+    const applyAdvanced = () => {
+        setShowAdvanced(false);
+        applyFilters({
+            needs_call: undefined,
+            ...advanced,
+            was_transferred: advanced.was_transferred ? 1 : undefined,
+        });
+    };
+
+    const clearAdvanced = () => {
+        setAdvanced({
+            min_amount: '',
+            max_amount: '',
+            donated_after: '',
+            donated_before: '',
+            last_called_after: '',
+            last_called_before: '',
+            last_called_by: '',
+            campaign_id: '',
+            tag: '',
+            was_transferred: '',
+        });
+        setShowAdvanced(false);
+        applyFilters({
+            min_amount: undefined,
+            max_amount: undefined,
+            donated_after: undefined,
+            donated_before: undefined,
+            last_called_after: undefined,
+            last_called_before: undefined,
+            last_called_by: undefined,
+            campaign_id: undefined,
+            tag: undefined,
+            was_transferred: undefined,
+        });
+    };
+
+    const hasAdvanced = !!(
+        filters.min_amount ||
+        filters.max_amount ||
+        filters.donated_after ||
+        filters.donated_before ||
+        filters.last_called_after ||
+        filters.last_called_before ||
+        filters.last_called_by ||
+        filters.campaign_id ||
+        filters.tag ||
+        filters.was_transferred
+    );
 
     const toggle = (key) => {
         const turningOn = !filters[key];
@@ -187,7 +253,152 @@ export default function DonorsIndex({
                         </button>
                     );
                 })}
+                <button
+                    type="button"
+                    onClick={() => setShowAdvanced(true)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                        hasAdvanced ? 'bg-secondary text-white' : 'border border-outline-variant text-on-surface-variant'
+                    }`}
+                >
+                    Advanced filters
+                </button>
             </div>
+
+            {showAdvanced && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">Advanced donor filters</h3>
+                            <button type="button" onClick={() => setShowAdvanced(false)} className="text-sm">
+                                Close
+                            </button>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label className="text-xs font-semibold">Donation ≥</label>
+                                <input
+                                    type="number"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.min_amount}
+                                    onChange={(e) => setAdvanced({ ...advanced, min_amount: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Donation ≤</label>
+                                <input
+                                    type="number"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.max_amount}
+                                    onChange={(e) => setAdvanced({ ...advanced, max_amount: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Donated after</label>
+                                <input
+                                    type="date"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.donated_after}
+                                    onChange={(e) => setAdvanced({ ...advanced, donated_after: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Donated before</label>
+                                <input
+                                    type="date"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.donated_before}
+                                    onChange={(e) => setAdvanced({ ...advanced, donated_before: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Last called after</label>
+                                <input
+                                    type="date"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.last_called_after}
+                                    onChange={(e) => setAdvanced({ ...advanced, last_called_after: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Last called before</label>
+                                <input
+                                    type="date"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.last_called_before}
+                                    onChange={(e) => setAdvanced({ ...advanced, last_called_before: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Last called by</label>
+                                <select
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.last_called_by}
+                                    onChange={(e) => setAdvanced({ ...advanced, last_called_by: e.target.value })}
+                                >
+                                    <option value="">Any</option>
+                                    {volunteers.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Campaign / project</label>
+                                <select
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.campaign_id}
+                                    onChange={(e) => setAdvanced({ ...advanced, campaign_id: e.target.value })}
+                                >
+                                    <option value="">Any</option>
+                                    {campaigns.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold">Tag</label>
+                                <select
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={advanced.tag}
+                                    onChange={(e) => setAdvanced({ ...advanced, tag: e.target.value })}
+                                >
+                                    <option value="">Any</option>
+                                    {availableTags.map((tag) => (
+                                        <option key={tag} value={tag}>
+                                            {tag}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <label className="flex items-end gap-2 pb-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={!!advanced.was_transferred}
+                                    onChange={(e) =>
+                                        setAdvanced({ ...advanced, was_transferred: e.target.checked ? 1 : '' })
+                                    }
+                                />
+                                Transferred only
+                            </label>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button type="button" onClick={clearAdvanced} className="rounded-xl px-4 py-2 text-sm">
+                                Clear
+                            </button>
+                            <button
+                                type="button"
+                                onClick={applyAdvanced}
+                                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                            >
+                                Apply filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
                 {donors.data.length === 0 ? (
@@ -238,6 +449,14 @@ export default function DonorsIndex({
                                                             Transferred
                                                         </span>
                                                     )}
+                                                    {(donor.tags || []).map((tag) => (
+                                                        <span
+                                                            key={tag}
+                                                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700"
+                                                        >
+                                                            {tag}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                                 {donor.preferred_language && (
                                                     <div className="mt-0.5 text-xs text-on-surface-variant">

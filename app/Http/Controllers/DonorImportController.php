@@ -86,7 +86,7 @@ class DonorImportController extends Controller
 
     public function template(): StreamedResponse
     {
-        $headers = ['full_name', 'phone', 'email', 'city', 'state', 'preferred_language'];
+        $headers = ['full_name', 'phone', 'email', 'city', 'state', 'preferred_language', 'tags'];
         $sample = ['Anita Mehta', '+919811111111', 'anita@example.com', 'Mumbai', 'Maharashtra', 'hi'];
 
         return response()->streamDownload(function () use ($headers, $sample) {

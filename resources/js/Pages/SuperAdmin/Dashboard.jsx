@@ -69,6 +69,12 @@ export default function SuperAdminDashboard({ organizations, stats }) {
                         </div>
                         <div className="mt-4 flex gap-2">
                             <Link
+                                href={route('organizations.show', org.id)}
+                                className="rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-semibold"
+                            >
+                                Profile
+                            </Link>
+                            <Link
                                 href={route('organizations.edit', org.id)}
                                 className="rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-semibold"
                             >

@@ -38,11 +38,15 @@ class DonorController extends Controller
         // Volunteers default to the "needs call" queue so the next interaction is obvious.
         $filters = $request->only([
             'search', 'assigned_to_me', 'uncontacted', 'follow_up_due',
-            'interested', 'do_not_call', 'min_amount', 'donated_after', 'needs_call',
+            'interested', 'do_not_call', 'min_amount', 'max_amount',
+            'donated_after', 'donated_before', 'last_called_after', 'last_called_before',
+            'last_called_by', 'campaign_id', 'tag', 'was_transferred', 'needs_call',
         ]);
 
         if ($isVolunteer && ! $request->has('needs_call') && ! $request->hasAny([
             'uncontacted', 'follow_up_due', 'interested', 'do_not_call', 'search',
+            'min_amount', 'max_amount', 'donated_after', 'donated_before',
+            'last_called_after', 'last_called_before', 'last_called_by', 'campaign_id', 'tag',
         ])) {
             $filters['needs_call'] = 1;
         }
@@ -77,12 +81,54 @@ class DonorController extends Controller
             $query->where('do_not_call', true);
         }
 
+        if (! empty($filters['was_transferred'])) {
+            $query->where('was_transferred', true);
+        }
+
         if ($request->filled('min_amount')) {
             $query->where('total_donated', '>=', (float) $request->input('min_amount'));
         }
 
+        if ($request->filled('max_amount')) {
+            $query->where('total_donated', '<=', (float) $request->input('max_amount'));
+        }
+
         if ($request->filled('donated_after')) {
             $query->whereDate('last_donation_at', '>=', $request->input('donated_after'));
+        }
+
+        if ($request->filled('donated_before')) {
+            $query->whereDate('last_donation_at', '<=', $request->input('donated_before'));
+        }
+
+        if ($request->filled('last_called_after')) {
+            $query->whereDate('last_contacted_at', '>=', $request->input('last_called_after'));
+        }
+
+        if ($request->filled('last_called_before')) {
+            $query->whereDate('last_contacted_at', '<=', $request->input('last_called_before'));
+        }
+
+        if ($request->filled('last_called_by')) {
+            $volunteerId = (int) $request->input('last_called_by');
+            $latestIds = DonorInteraction::query()
+                ->forOrganization($orgId)
+                ->selectRaw('MAX(id) as id')
+                ->groupBy('donor_id');
+
+            $query->whereIn('id', DonorInteraction::query()
+                ->whereIn('id', $latestIds)
+                ->where('volunteer_id', $volunteerId)
+                ->select('donor_id'));
+        }
+
+        if ($request->filled('campaign_id')) {
+            $campaignId = (int) $request->input('campaign_id');
+            $query->whereHas('donations', fn ($q) => $q->where('campaign_id', $campaignId));
+        }
+
+        if ($request->filled('tag')) {
+            $query->withTag($request->string('tag')->toString());
         }
 
         if ($request->filled('search')) {
@@ -118,6 +164,16 @@ class DonorController extends Controller
             'needs_call' => $queueBase->clone()->needsCall()->count(),
         ];
 
+        $availableTags = Donor::query()
+            ->forOrganization($orgId)
+            ->whereNotNull('tags')
+            ->pluck('tags')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
         return Inertia::render('Donors/Index', [
             'donors' => $donors,
             'filters' => $filters,
@@ -128,6 +184,16 @@ class DonorController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
             ]),
+            'campaigns' => Campaign::query()
+                ->forOrganization($orgId)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'volunteers' => User::query()
+                ->where('role', 'volunteer')
+                ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $orgId))
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'availableTags' => $availableTags,
         ]);
     }
 

@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Organizations\StoreOrganizationRequest;
 use App\Http\Requests\Organizations\UpdateOrganizationRequest;
+use App\Models\CommissionCycle;
+use App\Models\Donation;
 use App\Models\Organization;
+use App\Models\RazorpayPayment;
+use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,6 +68,103 @@ class OrganizationController extends Controller
         return redirect()
             ->route('organizations.index')
             ->with('success', 'Organization created.');
+    }
+
+    public function show(Organization $organization): Response
+    {
+        $this->authorize('view', $organization);
+
+        return $this->renderProfile($organization);
+    }
+
+    public function current(Request $request): Response
+    {
+        $orgId = \App\Support\OrganizationContext::id();
+        abort_unless($orgId, 403);
+        $organization = Organization::query()->findOrFail($orgId);
+        $this->authorize('view', $organization);
+
+        return $this->renderProfile($organization);
+    }
+
+    protected function renderProfile(Organization $organization): Response
+    {
+        $organization->load(['apiConnection', 'commissionSetting', 'messagingSetting']);
+        $organization->loadCount(['donors', 'users', 'donations']);
+
+        $volunteers = User::query()
+            ->where('role', 'volunteer')
+            ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'email', 'is_internal_telecaller', 'is_active']);
+
+        $recentDonations = Donation::query()
+            ->forOrganization($organization->id)
+            ->with('donor:id,full_name')
+            ->latest('donated_at')
+            ->limit(10)
+            ->get();
+
+        $recentPayments = RazorpayPayment::query()
+            ->forOrganization($organization->id)
+            ->with('donor:id,full_name')
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        $latestCycle = CommissionCycle::query()
+            ->forOrganization($organization->id)
+            ->orderByDesc('period')
+            ->first();
+
+        return Inertia::render('Organizations/Show', [
+            'organization' => [
+                ...$organization->toArray(),
+                'donors_count' => $organization->donors_count,
+                'users_count' => $organization->users_count,
+                'donations_count' => $organization->donations_count,
+                'has_razorpay_secret' => filled($organization->razorpay_key_secret),
+                'razorpay_key_secret' => null,
+                'razorpay_webhook_secret' => null,
+            ],
+            'volunteers' => $volunteers,
+            'recentDonations' => $recentDonations,
+            'recentPayments' => $recentPayments,
+            'latestCycle' => $latestCycle,
+            'monthCollection' => Donation::query()
+                ->forOrganization($organization->id)
+                ->where('donated_at', '>=', now()->startOfMonth())
+                ->sum('amount'),
+            'canEdit' => request()->user()?->can('update', $organization) ?? false,
+        ]);
+    }
+
+    public function updateRazorpay(Request $request, Organization $organization): RedirectResponse
+    {
+        $this->authorize('update', $organization);
+
+        $data = $request->validate([
+            'razorpay_enabled' => ['sometimes', 'boolean'],
+            'razorpay_key_id' => ['nullable', 'string', 'max:255'],
+            'razorpay_key_secret' => ['nullable', 'string', 'max:255'],
+            'razorpay_webhook_secret' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (! array_key_exists('razorpay_key_secret', $data) || blank($data['razorpay_key_secret'])) {
+            unset($data['razorpay_key_secret']);
+        }
+        if (! array_key_exists('razorpay_webhook_secret', $data) || blank($data['razorpay_webhook_secret'])) {
+            unset($data['razorpay_webhook_secret']);
+        }
+
+        $organization->fill([
+            ...$data,
+            'razorpay_enabled' => $request->boolean('razorpay_enabled'),
+        ]);
+        $organization->save();
+
+        return back()->with('success', 'Razorpay settings saved.');
     }
 
     public function edit(Organization $organization): Response

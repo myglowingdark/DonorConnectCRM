@@ -1,3 +1,11 @@
+[tested] 1. Imported lead list can have the tags,
+[tested] 2. donor list should have an advance filter , like donation more then less then , by date before after , last call data, last called by , project/ camping donated in etc you can show a popup in that you can show filter ,
+similar kind of advance filter for users/volunteers appropriately
+[tested] 3. admin menu bar should be scrollable and well arranged , you can have submenu in the menu ,
+[tested] 4. if we open organization profile , we should be able to see all the details there only as this is multi tenant , like settings , volunteers , used donor list , payment details last payment details etc
+[tested] 5. use razor pay
+
+
 [tested] performance statistics graph
 
 [tested] org admin should be able to set the volunteer comfortable languages

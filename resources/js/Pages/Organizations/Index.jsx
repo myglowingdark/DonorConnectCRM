@@ -45,6 +45,9 @@ export default function OrganizationsIndex({ organizations }) {
                                 <td className="px-4 py-3">{org.users_count}</td>
                                 <td className="px-4 py-3">{org.api_connection?.sync_status || 'idle'}</td>
                                 <td className="px-4 py-3 text-right">
+                                    <Link href={route('organizations.show', org.id)} className="mr-3 text-xs font-semibold text-secondary">
+                                        Profile
+                                    </Link>
                                     <Link href={route('organizations.edit', org.id)} className="text-xs font-semibold text-secondary">
                                         Edit
                                     </Link>

@@ -16,12 +16,16 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationSwitcherController;
 use App\Http\Controllers\PlatformMessagingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RazorpayController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TransferController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
+
+Route::post('/razorpay/webhook/{organization}', [RazorpayController::class, 'webhook'])
+    ->name('razorpay.webhook');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -117,6 +121,9 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('/donors/{donor}/messages', [MessagingController::class, 'send'])
             ->name('donors.messages.send');
+        Route::post('/donors/{donor}/razorpay-order', [RazorpayController::class, 'createOrder'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('donors.razorpay.order');
 
         Route::get('/commissions', [CommissionController::class, 'settings'])
             ->middleware('role:super_admin,organization_admin')
@@ -187,6 +194,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:super_admin,organization_admin')
         ->name('users.update');
 
+    Route::get('/organization/profile', [OrganizationController::class, 'current'])
+        ->middleware('role:super_admin,organization_admin')
+        ->name('organization.profile');
     Route::get('/organizations', [OrganizationController::class, 'index'])
         ->middleware('role:super_admin')
         ->name('organizations.index');
@@ -196,12 +206,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/organizations', [OrganizationController::class, 'store'])
         ->middleware('role:super_admin')
         ->name('organizations.store');
+    Route::get('/organizations/{organization}', [OrganizationController::class, 'show'])
+        ->middleware('role:super_admin,organization_admin')
+        ->name('organizations.show');
     Route::get('/organizations/{organization}/edit', [OrganizationController::class, 'edit'])
         ->middleware('role:super_admin')
         ->name('organizations.edit');
     Route::put('/organizations/{organization}', [OrganizationController::class, 'update'])
         ->middleware('role:super_admin')
         ->name('organizations.update');
+    Route::put('/organizations/{organization}/razorpay', [OrganizationController::class, 'updateRazorpay'])
+        ->middleware('role:super_admin,organization_admin')
+        ->name('organizations.razorpay.update');
 
     Route::get('/platform/messaging', [PlatformMessagingController::class, 'edit'])
         ->middleware('role:super_admin')
