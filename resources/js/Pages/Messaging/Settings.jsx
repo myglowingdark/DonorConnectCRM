@@ -152,6 +152,19 @@ export default function MessagingSettings({
                             onChange={(e) => form.setData('smtp_password', e.target.value)}
                         />
                     </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => router.post(route('messaging.smtp.test'))}
+                            className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                        >
+                            Test SMTP connection
+                        </button>
+                        <p className="text-xs text-on-surface-variant">
+                            Sends a test email to your account using saved org SMTP, then platform SMTP, then .env.
+                            Save settings first if you just changed them.
+                        </p>
+                    </div>
                 </section>
 
                 {hasWhatsAppFeature ? (

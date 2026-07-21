@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import StatusBadge from '@/Components/StatusBadge';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
 const emptyForm = {
@@ -79,6 +79,7 @@ export default function MessagingTemplates({
     metaStatuses = [],
     pendingMetaSyncCount = 0,
 }) {
+    const { flash } = usePage().props;
     const [editing, setEditing] = useState(null);
     const [actionId, setActionId] = useState(null);
     const [actionKind, setActionKind] = useState(null);
@@ -139,8 +140,10 @@ export default function MessagingTemplates({
 
     const submit = (e) => {
         e.preventDefault();
+        const hasFile = form.data.attachment instanceof File;
         const options = {
-            forceFormData: true,
+            forceFormData: hasFile,
+            preserveScroll: true,
             onSuccess: () => {
                 if (editing) {
                     setEditing(null);
@@ -151,8 +154,22 @@ export default function MessagingTemplates({
             },
         };
 
+        // Laravel 12 boolean rules only accept 0/1 — FormData "false"/"" fails validation.
+        form
+            .transform((data) => ({
+                ...data,
+                is_active: data.is_active ? 1 : 0,
+                remove_attachment: data.remove_attachment ? 1 : 0,
+                attachment: hasFile ? data.attachment : null,
+                ...(editing && hasFile ? { _method: 'put' } : {}),
+            }));
+
         if (editing) {
-            form.put(route('messaging.templates.update', editing.id), options);
+            if (hasFile) {
+                form.post(route('messaging.templates.update', editing.id), options);
+            } else {
+                form.put(route('messaging.templates.update', editing.id), options);
+            }
         } else {
             form.post(route('messaging.templates.store'), options);
         }
@@ -200,6 +217,13 @@ export default function MessagingTemplates({
                     Messaging settings
                 </Link>
             </div>
+
+            {flash?.success && (
+                <p className="mb-4 rounded-xl bg-secondary/10 px-4 py-2 text-sm text-secondary">{flash.success}</p>
+            )}
+            {flash?.error && (
+                <p className="mb-4 rounded-xl bg-error/10 px-4 py-2 text-sm text-error">{flash.error}</p>
+            )}
 
             {actionError && !actionError.templateId && (
                 <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">

@@ -14,6 +14,7 @@ use App\Models\Plan;
 use App\Models\PlatformBillingSetting;
 use App\Models\PlatformCommissionSetting;
 use App\Models\PlatformMessagingSetting;
+use App\Services\Messaging\MessageService;
 use App\Services\Messaging\MetaEmbeddedSignupService;
 use App\Services\Messaging\MetaWhatsAppClient;
 use App\Services\Messaging\MetaWhatsAppCredentials;
@@ -214,6 +215,32 @@ class SiteSettingsController extends Controller
         return redirect()
             ->route('site-settings.index', ['tab' => 'messaging'])
             ->with('success', "Platform Meta WhatsApp connected: {$display}");
+    }
+
+    public function testSmtp(Request $request, MessageService $messages): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        $to = $request->user()->email;
+        if (blank($to)) {
+            return redirect()
+                ->route('site-settings.index', ['tab' => 'messaging'])
+                ->with('error', 'Your user account has no email address to receive the test message.');
+        }
+
+        try {
+            $result = $messages->sendPlatformSmtpTestEmail($to);
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?: 'SMTP test failed.';
+
+            return redirect()
+                ->route('site-settings.index', ['tab' => 'messaging'])
+                ->with('error', $message);
+        }
+
+        return redirect()
+            ->route('site-settings.index', ['tab' => 'messaging'])
+            ->with('success', "Test email sent to {$result['to']} via {$result['source']} (from {$result['from']}).");
     }
 
     public function updatePlan(UpdatePlanRequest $request, Plan $plan): RedirectResponse

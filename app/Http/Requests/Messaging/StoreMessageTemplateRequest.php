@@ -14,6 +14,23 @@ class StoreMessageTemplateRequest extends FormRequest
         return $this->user()?->isAdmin() ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        if ($this->exists('is_active')) {
+            $merge['is_active'] = $this->boolean('is_active');
+        }
+
+        if ($this->exists('remove_attachment')) {
+            $merge['remove_attachment'] = $this->boolean('remove_attachment');
+        }
+
+        if ($merge !== []) {
+            $this->merge($merge);
+        }
+    }
+
     public function rules(): array
     {
         return [

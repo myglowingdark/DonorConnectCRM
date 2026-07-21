@@ -155,6 +155,35 @@ class MessagingController extends Controller
         return back()->with('success', "Meta WhatsApp connected: {$display}");
     }
 
+    public function testSmtpConnection(
+        Request $request,
+        MessageService $messages,
+    ): RedirectResponse {
+        abort_unless($request->user()?->isAdmin(), 403);
+        $orgId = OrganizationContext::id();
+        abort_unless($orgId, 403);
+
+        $organization = Organization::query()->findOrFail($orgId);
+        $to = $request->user()->email;
+
+        if (blank($to)) {
+            return back()->with('error', 'Your user account has no email address to receive the test message.');
+        }
+
+        try {
+            $result = $messages->sendOrgSmtpTestEmail($organization, $to);
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?: 'SMTP test failed.';
+
+            return back()->with('error', $message);
+        }
+
+        return back()->with(
+            'success',
+            "Test email sent to {$result['to']} via {$result['source']} (from {$result['from']}).",
+        );
+    }
+
     public function connectWhatsApp(
         Request $request,
         MetaEmbeddedSignupService $signup,

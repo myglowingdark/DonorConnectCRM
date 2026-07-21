@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Platform\UpdatePlatformMessagingSettingsRequest;
+use App\Services\Messaging\MessageService;
 use App\Services\Messaging\MetaEmbeddedSignupService;
 use App\Services\Messaging\MetaWhatsAppClient;
 use Illuminate\Http\RedirectResponse;
@@ -30,5 +31,10 @@ class PlatformMessagingController extends Controller
     public function testWhatsApp(Request $request, SiteSettingsController $siteSettings, MetaWhatsAppClient $client): RedirectResponse
     {
         return $siteSettings->testWhatsApp($request, $client);
+    }
+
+    public function testSmtp(Request $request, SiteSettingsController $siteSettings, MessageService $messages): RedirectResponse
+    {
+        return $siteSettings->testSmtp($request, $messages);
     }
 }

@@ -264,6 +264,9 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/messaging', [MessagingController::class, 'updateSettings'])
             ->middleware('role:admin')
             ->name('messaging.settings.update');
+        Route::post('/messaging/smtp/test', [MessagingController::class, 'testSmtpConnection'])
+            ->middleware('role:admin')
+            ->name('messaging.smtp.test');
         Route::post('/messaging/whatsapp/test', [MessagingController::class, 'testWhatsAppConnection'])
             ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
             ->name('messaging.whatsapp.test');
@@ -441,6 +444,8 @@ Route::middleware(['auth'])->group(function () {
             ->name('site-settings.modules.update');
         Route::put('/site-settings/messaging', [SiteSettingsController::class, 'updateMessaging'])
             ->name('site-settings.messaging.update');
+        Route::post('/site-settings/messaging/smtp/test', [SiteSettingsController::class, 'testSmtp'])
+            ->name('site-settings.messaging.smtp.test');
         Route::post('/site-settings/messaging/whatsapp/test', [SiteSettingsController::class, 'testWhatsApp'])
             ->name('site-settings.messaging.whatsapp.test');
         Route::post('/site-settings/messaging/whatsapp/connect', [SiteSettingsController::class, 'connectWhatsApp'])
@@ -469,6 +474,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/platform/messaging/whatsapp/test', [PlatformMessagingController::class, 'testWhatsApp'])
         ->middleware('role:super_admin')
         ->name('platform.messaging.whatsapp.test');
+    Route::post('/platform/messaging/smtp/test', [PlatformMessagingController::class, 'testSmtp'])
+        ->middleware('role:super_admin')
+        ->name('platform.messaging.smtp.test');
     Route::post('/platform/messaging/whatsapp/connect', [PlatformMessagingController::class, 'connectWhatsApp'])
         ->middleware('role:super_admin')
         ->name('platform.messaging.whatsapp.connect');

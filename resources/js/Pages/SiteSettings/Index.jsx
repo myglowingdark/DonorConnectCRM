@@ -162,6 +162,19 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
                         onChange={(e) => form.setData('smtp_password', e.target.value)}
                     />
                 </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => router.post(route('site-settings.messaging.smtp.test'))}
+                        className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                    >
+                        Test SMTP connection
+                    </button>
+                    <p className="text-xs text-on-surface-variant">
+                        Sends a test email to your account using saved platform SMTP. Save first if you just changed
+                        settings.
+                    </p>
+                </div>
             </section>
 
             <section className="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">

@@ -376,6 +376,107 @@ class MessageService
     }
 
     /**
+     * Send a test email using the same SMTP resolution as donor outreach.
+     *
+     * @return array{source: string, to: string, from: string}
+     */
+    public function sendOrgSmtpTestEmail(Organization $organization, string $toEmail): array
+    {
+        $settings = $this->settingsFor($organization->id);
+        $platform = PlatformMessagingSetting::current();
+
+        if ($settings->usesCustomSmtp()) {
+            $this->configureSmtpMailer('org_smtp', $settings);
+            $mailer = 'org_smtp';
+            $fromEmail = (string) $settings->from_email;
+            $fromName = $settings->from_name ?: $organization->name;
+            $source = 'organization SMTP';
+        } elseif ($platform->email_enabled && $platform->usesCustomSmtp()) {
+            $this->configureSmtpMailer('platform_smtp', $platform);
+            $mailer = 'platform_smtp';
+            $fromEmail = (string) $platform->from_email;
+            $fromName = $platform->from_name ?: $organization->name;
+            $source = 'platform SMTP';
+        } else {
+            $mailer = null;
+            $fromEmail = (string) (config('mail.from.address') ?: '');
+            $fromName = (string) (config('mail.from.name') ?: config('app.name'));
+            $source = 'default app mailer ('.config('mail.default').')';
+
+            if (blank($fromEmail)) {
+                throw ValidationException::withMessages([
+                    'smtp' => 'No SMTP is configured. Set organization or platform SMTP (host + from email), or MAIL_FROM_ADDRESS in .env.',
+                ]);
+            }
+        }
+
+        $body = "This is a test email from DRM confirming outbound email works via {$source}.";
+
+        $send = function ($message) use ($toEmail, $fromEmail, $fromName) {
+            $message->to($toEmail)
+                ->subject('DRM SMTP connection test')
+                ->from($fromEmail, $fromName);
+        };
+
+        try {
+            if ($mailer) {
+                Mail::mailer($mailer)->raw($body, $send);
+            } else {
+                Mail::raw($body, $send);
+            }
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'smtp' => 'SMTP test failed: '.$e->getMessage(),
+            ]);
+        }
+
+        return [
+            'source' => $source,
+            'to' => $toEmail,
+            'from' => $fromEmail,
+        ];
+    }
+
+    /**
+     * @return array{source: string, to: string, from: string}
+     */
+    public function sendPlatformSmtpTestEmail(string $toEmail): array
+    {
+        $platform = PlatformMessagingSetting::current();
+
+        if (! $platform->usesCustomSmtp()) {
+            throw ValidationException::withMessages([
+                'smtp' => 'Configure platform SMTP host and from email before testing.',
+            ]);
+        }
+
+        $this->configureSmtpMailer('platform_smtp', $platform);
+        $fromEmail = (string) $platform->from_email;
+        $fromName = $platform->from_name ?: config('app.name');
+
+        try {
+            Mail::mailer('platform_smtp')->raw(
+                'This is a test email from DRM confirming platform SMTP settings work.',
+                function ($message) use ($toEmail, $fromEmail, $fromName) {
+                    $message->to($toEmail)
+                        ->subject('DRM platform SMTP connection test')
+                        ->from($fromEmail, $fromName);
+                },
+            );
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'smtp' => 'SMTP test failed: '.$e->getMessage(),
+            ]);
+        }
+
+        return [
+            'source' => 'platform SMTP',
+            'to' => $toEmail,
+            'from' => $fromEmail,
+        ];
+    }
+
+    /**
      * @return array{status: MessageStatus, error?: string|null, provider_message_id?: string|null, provider_payload?: array<string, mixed>|null}
      */
     protected function dispatchWhatsApp(
