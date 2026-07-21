@@ -188,7 +188,8 @@ class MessageService
         $this->entitlements->assertFeature($organization, 'whatsapp');
 
         $metaName = $template->meta_name ?: $this->slugifyMetaName($template->name);
-        $language = $template->meta_language ?: 'en';
+        // Meta language codes are lowercase (en, en_US). "EN" returns Invalid parameter.
+        $language = strtolower((string) ($template->meta_language ?: 'en'));
         $category = $template->meta_category ?: 'UTILITY';
 
         $bodyForMeta = $this->toMetaBodyText($template);
@@ -704,7 +705,19 @@ class MessageService
             if (ctype_digit((string) $key)) {
                 continue;
             }
-            $body = str_replace('{{'.$key.'}}', '{{'.($index + 1).'}}', $body);
+            $body = preg_replace(
+                '/\{\{\s*'.preg_quote((string) $key, '/').'\s*\}\}/',
+                '{{'.($index + 1).'}}',
+                $body,
+            ) ?? $body;
+        }
+
+        // Meta rejects bodies that start or end with a variable parameter.
+        if (preg_match('/^\{\{\d+\}\}/', $body)) {
+            $body = 'Hello '.$body;
+        }
+        if (preg_match('/\{\{\d+\}\}$/', $body)) {
+            $body .= '.';
         }
 
         return $body;

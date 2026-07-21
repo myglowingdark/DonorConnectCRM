@@ -249,9 +249,14 @@ class MetaWhatsAppClient
      */
     protected function toValidationException(?array $json, int $status, string $fallback): ValidationException
     {
-        $message = data_get($json, 'error.message')
-            ?? data_get($json, 'error.error_user_msg')
-            ?? $fallback;
+        $userMessage = data_get($json, 'error.error_user_msg');
+        $apiMessage = data_get($json, 'error.message');
+        $title = data_get($json, 'error.error_user_title');
+
+        $message = $userMessage ?: $apiMessage ?: $fallback;
+        if (filled($title) && filled($userMessage) && ! str_contains((string) $message, (string) $title)) {
+            $message = "{$title}: {$message}";
+        }
 
         return ValidationException::withMessages([
             'whatsapp' => "[{$status}] {$message}",
