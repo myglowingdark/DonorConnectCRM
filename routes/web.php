@@ -368,16 +368,16 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/organizations/{organization}/sync/{connection}', [ApiConnectionController::class, 'updateForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.update');
-        Route::post('/organizations/{organization}/sync/{connection}/test', [ApiConnectionController::class, 'test'])
+        Route::post('/organizations/{organization}/sync/{connection}/test', [ApiConnectionController::class, 'testForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.test');
-        Route::post('/organizations/{organization}/sync/{connection}/run', [ApiConnectionController::class, 'sync'])
+        Route::post('/organizations/{organization}/sync/{connection}/run', [ApiConnectionController::class, 'syncForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.run');
-        Route::post('/organizations/{organization}/sync/{connection}/razorpay', [ApiConnectionController::class, 'syncRazorpay'])
+        Route::post('/organizations/{organization}/sync/{connection}/razorpay', [ApiConnectionController::class, 'syncRazorpayForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.razorpay');
-        Route::post('/organizations/{organization}/sync/{connection}/razorpay-status', [ApiConnectionController::class, 'razorpayStatus'])
+        Route::post('/organizations/{organization}/sync/{connection}/razorpay-status', [ApiConnectionController::class, 'razorpayStatusForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.razorpay-status');
     });

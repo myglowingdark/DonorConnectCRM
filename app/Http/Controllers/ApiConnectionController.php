@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ApiAuthType;
+use App\Enums\SyncStatus;
 use App\Http\Requests\Sync\StoreApiConnectionRequest;
 use App\Jobs\Sync\SyncOrganizationDonorsJob;
 use App\Models\Organization;
@@ -81,8 +82,77 @@ class ApiConnectionController extends Controller
         return $this->persistUpdate($request, $connection, $auditLogger);
     }
 
-    public function test(OrganizationApiConnection $connection, WordPressDonorSyncService $service): RedirectResponse
+    public function test(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
+        return $this->runTest($connection, $service);
+    }
+
+    public function testForOrganization(
+        Organization $organization,
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
+        abort_unless($connection->organization_id === $organization->id, 404);
+
+        return $this->runTest($connection, $service);
+    }
+
+    public function sync(OrganizationApiConnection $connection): RedirectResponse
     {
+        return $this->runSync($connection);
+    }
+
+    public function syncForOrganization(
+        Organization $organization,
+        OrganizationApiConnection $connection,
+    ): RedirectResponse {
+        abort_unless($connection->organization_id === $organization->id, 404);
+
+        return $this->runSync($connection);
+    }
+
+    public function syncRazorpay(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        return $this->runSyncRazorpay($connection, $service, $auditLogger);
+    }
+
+    public function syncRazorpayForOrganization(
+        Organization $organization,
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        abort_unless($connection->organization_id === $organization->id, 404);
+
+        return $this->runSyncRazorpay($connection, $service, $auditLogger);
+    }
+
+    public function razorpayStatus(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
+        return $this->runRazorpayStatus($connection, $service);
+    }
+
+    public function razorpayStatusForOrganization(
+        Organization $organization,
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
+        abort_unless($connection->organization_id === $organization->id, 404);
+
+        return $this->runRazorpayStatus($connection, $service);
+    }
+
+    protected function runTest(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
         $this->authorize('sync', $connection);
 
         $result = $service->testConnection($connection);
@@ -90,16 +160,23 @@ class ApiConnectionController extends Controller
         return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    public function sync(Request $request, OrganizationApiConnection $connection): RedirectResponse
+    protected function runSync(OrganizationApiConnection $connection): RedirectResponse
     {
         $this->authorize('sync', $connection);
 
-        SyncOrganizationDonorsJob::dispatch($connection->id);
+        // Run immediately so "Sync donors now" works on shared hosting without a queue worker.
+        SyncOrganizationDonorsJob::dispatchSync($connection->id);
 
-        return back()->with('success', 'Donor sync queued. Refresh shortly to see results.');
+        $connection->refresh();
+
+        if ($connection->sync_status === SyncStatus::Failed) {
+            return back()->with('error', $connection->last_error ?: 'Donor sync failed.');
+        }
+
+        return back()->with('success', 'Donor sync completed.');
     }
 
-    public function syncRazorpay(
+    protected function runSyncRazorpay(
         OrganizationApiConnection $connection,
         WordPressDonorSyncService $service,
         AuditLogger $auditLogger,
@@ -118,7 +195,7 @@ class ApiConnectionController extends Controller
         return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    public function razorpayStatus(
+    protected function runRazorpayStatus(
         OrganizationApiConnection $connection,
         WordPressDonorSyncService $service,
     ): RedirectResponse {
@@ -157,24 +234,25 @@ class ApiConnectionController extends Controller
                 'label' => $t->label(),
             ]),
             'defaultMappings' => $syncService->defaultFieldMappings(),
+            // Relative URLs so actions work on live HTTPS even when APP_URL is wrong/http.
             'routes' => [
-                'store' => route('organizations.sync.store', $organization),
+                'store' => route('organizations.sync.store', $organization, false),
                 'update' => $connection
-                    ? route('organizations.sync.update', [$organization, $connection])
+                    ? route('organizations.sync.update', [$organization, $connection], false)
                     : null,
                 'test' => $connection
-                    ? route('organizations.sync.test', [$organization, $connection])
+                    ? route('organizations.sync.test', [$organization, $connection], false)
                     : null,
                 'run' => $connection
-                    ? route('organizations.sync.run', [$organization, $connection])
+                    ? route('organizations.sync.run', [$organization, $connection], false)
                     : null,
                 'razorpay' => $connection
-                    ? route('organizations.sync.razorpay', [$organization, $connection])
+                    ? route('organizations.sync.razorpay', [$organization, $connection], false)
                     : null,
                 'razorpay_status' => $connection
-                    ? route('organizations.sync.razorpay-status', [$organization, $connection])
+                    ? route('organizations.sync.razorpay-status', [$organization, $connection], false)
                     : null,
-                'profile' => route('organizations.show', $organization),
+                'profile' => route('organizations.show', $organization, false),
             ],
         ]);
     }
@@ -269,23 +347,27 @@ class ApiConnectionController extends Controller
      */
     protected function buildCredentials(array $data): array
     {
+        $filled = fn (?string $value): bool => filled($value);
+
         return match ($data['auth_type']) {
-            'bearer' => array_filter(['token' => $data['token'] ?? null]),
+            'bearer' => array_filter(['token' => $data['token'] ?? null], $filled),
             'basic' => array_filter([
                 'username' => $data['username'] ?? null,
                 'password' => $data['password'] ?? null,
-            ]),
+            ], $filled),
             'api_key' => array_filter([
                 'key' => $data['api_key'] ?? null,
-                'header' => $data['api_key_header'] ?? 'X-API-Key',
-            ]),
+                'header' => filled($data['api_key'] ?? null)
+                    ? ($data['api_key_header'] ?? 'X-API-Key')
+                    : null,
+            ], $filled),
             'hmac' => array_filter([
                 'api_key' => $data['api_key'] ?? null,
                 'key' => $data['api_key'] ?? null,
-                'header' => 'X-DC-API-Key',
+                'header' => filled($data['api_key'] ?? null) ? 'X-DC-API-Key' : null,
                 'hmac_secret' => $data['hmac_secret'] ?? null,
                 'site_id' => $data['site_id'] ?? null,
-            ]),
+            ], $filled),
             default => [],
         };
     }

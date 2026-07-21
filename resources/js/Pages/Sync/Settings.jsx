@@ -22,7 +22,7 @@ export default function SyncSettings({
         api_key: '',
         api_key_header: 'X-DC-API-Key',
         hmac_secret: '',
-        site_id: '',
+        site_id: connection?.site_id || '',
         field_mappings: connection?.field_mappings || defaultMappings,
         is_active: connection?.is_active ?? true,
     });
@@ -221,31 +221,35 @@ export default function SyncSettings({
                         >
                             Save connection
                         </button>
-                        {connection?.id && (
+                        {connection?.id && actionRoutes?.test && (
                             <>
                                 <button
                                     type="button"
+                                    disabled={form.processing}
                                     onClick={() => router.post(actionRoutes.test)}
-                                    className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                                    className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold disabled:opacity-50"
                                 >
                                     Test connection
                                 </button>
                                 <button
                                     type="button"
+                                    disabled={form.processing}
                                     onClick={() => router.post(actionRoutes.run)}
-                                    className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white"
+                                    className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                 >
                                     Sync donors now
                                 </button>
                                 <button
                                     type="button"
+                                    disabled={form.processing}
                                     onClick={() => router.post(actionRoutes.razorpay_status)}
-                                    className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                                    className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold disabled:opacity-50"
                                 >
                                     Check WP Razorpay
                                 </button>
                                 <button
                                     type="button"
+                                    disabled={form.processing}
                                     onClick={() => {
                                         if (
                                             confirm(
@@ -255,7 +259,7 @@ export default function SyncSettings({
                                             router.post(actionRoutes.razorpay);
                                         }
                                     }}
-                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                 >
                                     Sync Razorpay keys
                                 </button>

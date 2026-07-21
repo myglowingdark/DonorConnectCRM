@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(OrganizationApiConnection::class, OrganizationApiConnectionPolicy::class);
 
         RateLimiter::for('sync', function (Request $request) {
-            return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
     }
 }

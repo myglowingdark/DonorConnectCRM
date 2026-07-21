@@ -57,13 +57,16 @@ class OrganizationApiConnection extends Model
 
     public function toSafeArray(): array
     {
+        $credentials = $this->credentials ?? [];
+
         return [
             'id' => $this->id,
             'organization_id' => $this->organization_id,
             'name' => $this->name,
             'base_url' => $this->base_url,
             'auth_type' => $this->auth_type?->value,
-            'has_credentials' => ! empty($this->credentials),
+            'has_credentials' => ! empty($credentials['api_key'] ?? $credentials['key'] ?? $credentials['token'] ?? $credentials['hmac_secret'] ?? null),
+            'site_id' => $credentials['site_id'] ?? null,
             'field_mappings' => $this->field_mappings,
             'sync_settings' => $this->sync_settings,
             'last_synced_at' => $this->last_synced_at?->toIso8601String(),
