@@ -54,19 +54,33 @@ class CommissionController extends Controller
                 'effective_percent' => $settings->rateForVolunteer($user->id, false),
             ]);
 
-        $internalVolunteers = $allVolunteers
-            ->where('is_internal_telecaller', true)
-            ->values()
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'override_percent' => $settings->internal_volunteer_overrides[(string) $user->id] ?? null,
-                'effective_percent' => $settings->rateForVolunteer($user->id, true),
-            ]);
+        $isSuperAdmin = $request->user()->isSuperAdmin();
+
+        // Internal (platform) telecaller rates are Super Admin only — org admins must not see them.
+        $internalVolunteers = collect();
+        $internalSettings = [];
+        if ($isSuperAdmin) {
+            $internalVolunteers = $allVolunteers
+                ->where('is_internal_telecaller', true)
+                ->values()
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'override_percent' => $settings->internal_volunteer_overrides[(string) $user->id] ?? null,
+                    'effective_percent' => $settings->rateForVolunteer($user->id, true),
+                ]);
+
+            $internalSettings = [
+                'internal_individual_enabled' => $settings->internal_individual_enabled,
+                'internal_individual_default_percent' => (float) $settings->internal_individual_default_percent,
+                'internal_shared_enabled' => $settings->internal_shared_enabled,
+                'internal_shared_percent' => (float) $settings->internal_shared_percent,
+            ];
+        }
 
         return Inertia::render('Commissions/Settings', [
-            'settings' => [
+            'settings' => array_merge([
                 'individual_enabled' => $settings->individual_enabled,
                 'individual_default_percent' => (float) $settings->individual_default_percent,
                 'shared_enabled' => $settings->shared_enabled,
@@ -74,15 +88,11 @@ class CommissionController extends Controller
                 'shared_eligibility' => $settings->shared_eligibility,
                 'effective_from' => $settings->effective_from?->toDateString(),
                 'effective_to' => $settings->effective_to?->toDateString(),
-                'internal_individual_enabled' => $settings->internal_individual_enabled,
-                'internal_individual_default_percent' => (float) $settings->internal_individual_default_percent,
-                'internal_shared_enabled' => $settings->internal_shared_enabled,
-                'internal_shared_percent' => (float) $settings->internal_shared_percent,
-            ],
+            ], $internalSettings),
             'volunteers' => $orgVolunteers,
             'internalVolunteers' => $internalVolunteers,
-            'canEdit' => $request->user()->isSuperAdmin() || $request->user()->isOrganizationAdmin(),
-            'canEditInternal' => $request->user()->isSuperAdmin(),
+            'canEdit' => $isSuperAdmin || $request->user()->isOrganizationAdmin(),
+            'canEditInternal' => $isSuperAdmin,
         ]);
     }
 

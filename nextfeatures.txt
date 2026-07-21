@@ -30,7 +30,7 @@ smtp / org wise smtp /
 
 [tested] notification icon should , show count and , the notification should redirect to the relevant actions
 
-[tested] volunteers CAN BE OF TWO TYPES OWNED BY ORGANIZATION OR OWNED BY SUPER ADMIN , Name super admin owner volunteer as Internal telecallers
-internal Telecallers commission data for each organization will be set by superadmin only and based on that the commission will given , for internal team all there will be shared commission which will lie between the internal teams only
+[tested] volunteers CAN BE OF TWO TYPES OWNED BY ORGANIZATION OR OWNED BY SUPER ADMIN , Name super admin owner volunteer as {Sitename} Telecallers (e.g. DonorConnect Telecallers)
+{Sitename} Telecallers commission data for each organization will be set by superadmin only (hidden from org admin) and based on that the commission will given , for internal team all there will be shared commission which will lie between the internal teams only
 
 [tested] and the notification should be visible to relevant person only not all , like if transfer is done between two peoples they will only get the notification , same will handover transfer , lead added , lead assigned

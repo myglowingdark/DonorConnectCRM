@@ -179,6 +179,64 @@ class InternalTelecallersAndScopedNotificationsTest extends TestCase
         ]);
     }
 
+    public function test_org_admin_cannot_see_internal_commission_rates_on_settings_page(): void
+    {
+        $org = Organization::factory()->create();
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+        $internal = User::factory()->volunteer()->create(['is_internal_telecaller' => true]);
+        $internal->organizations()->attach($org->id, ['is_active' => true]);
+
+        CommissionSetting::create([
+            'organization_id' => $org->id,
+            'individual_enabled' => true,
+            'individual_default_percent' => 5,
+            'internal_individual_default_percent' => 11,
+            'internal_shared_percent' => 9,
+            'internal_shared_enabled' => true,
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->get(route('commissions.settings'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Commissions/Settings')
+                ->where('canEditInternal', false)
+                ->missing('settings.internal_individual_default_percent')
+                ->missing('settings.internal_shared_percent')
+                ->where('internalVolunteers', [])
+            );
+    }
+
+    public function test_super_admin_sees_donorconnect_telecaller_rates(): void
+    {
+        $org = Organization::factory()->create();
+        $super = User::factory()->superAdmin()->create();
+
+        CommissionSetting::create([
+            'organization_id' => $org->id,
+            'individual_enabled' => true,
+            'individual_default_percent' => 5,
+            'internal_individual_default_percent' => 11,
+            'internal_shared_percent' => 9,
+            'internal_shared_enabled' => true,
+        ]);
+
+        $this->actingAs($super);
+        OrganizationContext::set($org->id);
+
+        $this->get(route('commissions.settings'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Commissions/Settings')
+                ->where('canEditInternal', true)
+                ->where('settings.internal_individual_default_percent', 11)
+                ->where('settings.internal_shared_percent', 9)
+            );
+    }
+
     public function test_assignment_notifies_only_assigned_volunteer(): void
     {
         Notification::fake();

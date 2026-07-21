@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 
 function OverrideTable({ volunteers, form, field, defaultPercent, canEdit }) {
     return (
@@ -34,7 +34,7 @@ function OverrideTable({ volunteers, form, field, defaultPercent, canEdit }) {
                                     max="100"
                                     disabled={!canEdit}
                                     placeholder="Default"
-                                    className="w-28 rounded-xl border-slate-200"
+                                    className="w-28 rounded-xl border-slate-200 disabled:bg-slate-50 disabled:text-on-surface-variant"
                                     value={form.data[field][index]?.percent ?? ''}
                                     onChange={(e) => {
                                         const next = [...form.data[field]];
@@ -64,6 +64,8 @@ export default function CommissionSettings({
     canEdit,
     canEditInternal = false,
 }) {
+    const { appBrand = 'DonorConnect' } = usePage().props;
+
     const form = useForm({
         individual_enabled: !!settings.individual_enabled,
         individual_default_percent: settings.individual_default_percent ?? 5,
@@ -99,8 +101,10 @@ export default function CommissionSettings({
             <div className="mb-6">
                 <h2 className="text-headline-md">Payment per organization / volunteer</h2>
                 <p className="text-sm text-on-surface-variant">
-                    Org-owned volunteers use the settings below. Internal telecaller rates are set by Super Admin
-                    only; their shared pool stays within the internal team.
+                    Set commission for your organization volunteers below.
+                    {canEditInternal
+                        ? ` ${appBrand} Telecaller rates (platform service) are set here per organization and stay within that team.`
+                        : ` ${appBrand} Telecaller payout rates are managed by Super Admin and are not shown here.`}
                 </p>
             </div>
 
@@ -124,7 +128,7 @@ export default function CommissionSettings({
                             min="0"
                             max="100"
                             disabled={!canEdit}
-                            className="mt-1 w-full rounded-xl border-slate-200"
+                            className="mt-1 w-full rounded-xl border-slate-200 disabled:bg-slate-50"
                             value={form.data.individual_default_percent}
                             onChange={(e) => form.setData('individual_default_percent', e.target.value)}
                         />
@@ -151,7 +155,7 @@ export default function CommissionSettings({
                                 min="0"
                                 max="100"
                                 disabled={!canEdit}
-                                className="mt-1 w-full rounded-xl border-slate-200"
+                                className="mt-1 w-full rounded-xl border-slate-200 disabled:bg-slate-50"
                                 value={form.data.shared_percent}
                                 onChange={(e) => form.setData('shared_percent', e.target.value)}
                             />
@@ -160,7 +164,7 @@ export default function CommissionSettings({
                             <label className="text-xs font-semibold">Eligibility</label>
                             <input
                                 disabled={!canEdit}
-                                className="mt-1 w-full rounded-xl border-slate-200"
+                                className="mt-1 w-full rounded-xl border-slate-200 disabled:bg-slate-50"
                                 value={form.data.shared_eligibility}
                                 onChange={(e) => form.setData('shared_eligibility', e.target.value)}
                             />
@@ -170,7 +174,7 @@ export default function CommissionSettings({
                             <input
                                 type="date"
                                 disabled={!canEdit}
-                                className="mt-1 w-full rounded-xl border-slate-200"
+                                className="mt-1 w-full rounded-xl border-slate-200 disabled:bg-slate-50"
                                 value={form.data.effective_from}
                                 onChange={(e) => form.setData('effective_from', e.target.value)}
                             />
@@ -180,7 +184,7 @@ export default function CommissionSettings({
                             <input
                                 type="date"
                                 disabled={!canEdit}
-                                className="mt-1 w-full rounded-xl border-slate-200"
+                                className="mt-1 w-full rounded-xl border-slate-200 disabled:bg-slate-50"
                                 value={form.data.effective_to}
                                 onChange={(e) => form.setData('effective_to', e.target.value)}
                             />
@@ -200,65 +204,65 @@ export default function CommissionSettings({
                     />
                 </section>
 
-                <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-                    <h3 className="mb-1 font-semibold">Internal telecallers (Super Admin)</h3>
-                    <p className="mb-4 text-xs text-on-surface-variant">
-                        Shared commission for this pool is split only among internal telecallers who contributed.
-                        {!canEditInternal && ' Only Super Admin can edit these rates.'}
-                    </p>
-                    <label className="mb-3 flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={form.data.internal_individual_enabled}
-                            disabled={!canEditInternal}
-                            onChange={(e) => form.setData('internal_individual_enabled', e.target.checked)}
-                        />
-                        Enable individual % for internal telecallers
-                    </label>
-                    <div className="mb-4 grid gap-3 md:grid-cols-3">
-                        <div>
-                            <label className="text-xs font-semibold">Internal default %</label>
+                {canEditInternal && (
+                    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                        <h3 className="mb-1 font-semibold">{appBrand} Telecallers</h3>
+                        <p className="mb-4 text-xs text-on-surface-variant">
+                            Platform telecaller service rates for this organization. Shared pool splits only among{' '}
+                            {appBrand} Telecallers who contributed. Org admins cannot view or edit these rates.
+                        </p>
+                        <label className="mb-3 flex items-center gap-2 text-sm">
                             <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                disabled={!canEditInternal}
-                                className="mt-1 w-full rounded-xl border-slate-200"
-                                value={form.data.internal_individual_default_percent}
-                                onChange={(e) => form.setData('internal_individual_default_percent', e.target.value)}
+                                type="checkbox"
+                                checked={form.data.internal_individual_enabled}
+                                onChange={(e) => form.setData('internal_individual_enabled', e.target.checked)}
                             />
-                        </div>
-                        <div>
-                            <label className="flex items-center gap-2 text-xs font-semibold">
+                            Enable individual % for {appBrand} Telecallers
+                        </label>
+                        <div className="mb-4 grid gap-3 md:grid-cols-3">
+                            <div>
+                                <label className="text-xs font-semibold">Default %</label>
                                 <input
-                                    type="checkbox"
-                                    checked={form.data.internal_shared_enabled}
-                                    disabled={!canEditInternal}
-                                    onChange={(e) => form.setData('internal_shared_enabled', e.target.checked)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={form.data.internal_individual_default_percent}
+                                    onChange={(e) =>
+                                        form.setData('internal_individual_default_percent', e.target.value)
+                                    }
                                 />
-                                Internal shared pool
-                            </label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                disabled={!canEditInternal}
-                                className="mt-1 w-full rounded-xl border-slate-200"
-                                value={form.data.internal_shared_percent}
-                                onChange={(e) => form.setData('internal_shared_percent', e.target.value)}
-                            />
+                            </div>
+                            <div>
+                                <label className="flex items-center gap-2 text-xs font-semibold">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.data.internal_shared_enabled}
+                                        onChange={(e) => form.setData('internal_shared_enabled', e.target.checked)}
+                                    />
+                                    Shared pool
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    className="mt-1 w-full rounded-xl border-slate-200"
+                                    value={form.data.internal_shared_percent}
+                                    onChange={(e) => form.setData('internal_shared_percent', e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <OverrideTable
-                        volunteers={internalVolunteers}
-                        form={form}
-                        field="internal_volunteer_overrides"
-                        defaultPercent={form.data.internal_individual_default_percent}
-                        canEdit={canEditInternal}
-                    />
-                </section>
+                        <OverrideTable
+                            volunteers={internalVolunteers}
+                            form={form}
+                            field="internal_volunteer_overrides"
+                            defaultPercent={form.data.internal_individual_default_percent}
+                            canEdit
+                        />
+                    </section>
+                )}
 
                 {(canEdit || canEditInternal) && (
                     <button

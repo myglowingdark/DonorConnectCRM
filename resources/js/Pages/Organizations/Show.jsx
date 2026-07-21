@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatINR, formatDateTime } from '@/lib/format';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function OrganizationShow({
     organization,
@@ -11,6 +11,7 @@ export default function OrganizationShow({
     monthCollection,
     canEdit,
 }) {
+    const { appBrand = 'DonorConnect' } = usePage().props;
     const razorpayForm = useForm({
         razorpay_enabled: !!organization.razorpay_enabled,
         razorpay_key_id: organization.razorpay_key_id || '',
@@ -94,7 +95,9 @@ export default function OrganizationShow({
                                     <p className="text-xs text-on-surface-variant">{v.email}</p>
                                 </div>
                                 {v.is_internal_telecaller && (
-                                    <span className="text-[10px] font-semibold uppercase text-secondary">Internal</span>
+                                    <span className="text-[10px] font-semibold uppercase text-secondary">
+                                        {appBrand}
+                                    </span>
                                 )}
                             </li>
                         ))}

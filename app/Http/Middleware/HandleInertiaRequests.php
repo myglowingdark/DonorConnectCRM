@@ -47,18 +47,27 @@ class HandleInertiaRequests extends Middleware
             ])->values()->all();
         }
 
-        return [
-            ...parent::share($request),
+        $appName = (string) config('app.name', 'DonorConnect');
+        $appBrand = trim((string) preg_replace('/\s+CRM$/i', '', $appName)) ?: 'DonorConnect';
+
+        $authUser = null;
+        if ($user) {
+            $authUser = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role?->value,
+                'role_label' => $user->role?->label(),
+                'phone' => $user->phone,
+                'is_active' => $user->is_active,
+            ];
+        }
+
+        return array_merge(parent::share($request), [
+            'appName' => $appName,
+            'appBrand' => $appBrand,
             'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role?->value,
-                    'role_label' => $user->role?->label(),
-                    'phone' => $user->phone,
-                    'is_active' => $user->is_active,
-                ] : null,
+                'user' => $authUser,
             ],
             'currentOrganization' => $currentOrg,
             'organizations' => $organizations,
@@ -68,6 +77,6 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
             ],
-        ];
+        ]);
     }
 }

@@ -12,7 +12,7 @@ export default function UsersIndex({
     canManageAllOrganizations,
     languages = [],
 }) {
-    const { auth, currentOrganization } = usePage().props;
+    const { auth, currentOrganization, appBrand = 'DonorConnect' } = usePage().props;
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const isSuperAdmin = auth.user?.role === 'super_admin' || canManageAllOrganizations;
@@ -199,7 +199,7 @@ export default function UsersIndex({
                                 )
                             }
                         />
-                        Internal only
+                        {appBrand} only
                     </label>
                 )}
             </div>
@@ -232,7 +232,7 @@ export default function UsersIndex({
                                         <div className="capitalize">{String(user.role).replaceAll('_', ' ')}</div>
                                         {user.is_internal_telecaller && (
                                             <div className="mt-1 text-[10px] font-semibold uppercase text-secondary">
-                                                Internal telecaller
+                                                {appBrand} telecaller
                                             </div>
                                         )}
                                         {(user.languages || []).length > 0 && (
@@ -387,7 +387,7 @@ export default function UsersIndex({
                                         checked={form.data.is_internal_telecaller}
                                         onChange={(e) => form.setData('is_internal_telecaller', e.target.checked)}
                                     />
-                                    Internal telecaller (owned by Super Admin)
+                                    {appBrand} telecaller (owned by Super Admin)
                                 </label>
                             )}
                             <label className="flex items-center gap-2 text-sm">
