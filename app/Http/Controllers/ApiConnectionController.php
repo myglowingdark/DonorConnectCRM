@@ -20,23 +20,136 @@ class ApiConnectionController extends Controller
 {
     public function edit(Request $request, WordPressDonorSyncService $syncService): Response
     {
-        $orgId = OrganizationContext::id();
-        abort_unless($orgId, 403);
+        return $this->renderEdit(
+            $this->resolveOrganization(null),
+            $syncService,
+        );
+    }
 
-        $organization = Organization::query()->findOrFail($orgId);
-        $this->authorize('manageSync', $organization);
+    public function editForOrganization(
+        Organization $organization,
+        WordPressDonorSyncService $syncService,
+    ): Response {
+        return $this->renderEdit(
+            $this->resolveOrganization($organization),
+            $syncService,
+        );
+    }
 
+    public function store(
+        StoreApiConnectionRequest $request,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        return $this->persistNew(
+            $request,
+            $this->resolveOrganization(null),
+            $auditLogger,
+        );
+    }
+
+    public function storeForOrganization(
+        StoreApiConnectionRequest $request,
+        Organization $organization,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        return $this->persistNew(
+            $request,
+            $this->resolveOrganization($organization),
+            $auditLogger,
+        );
+    }
+
+    public function update(
+        StoreApiConnectionRequest $request,
+        OrganizationApiConnection $connection,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        $this->authorize('update', $connection);
+
+        return $this->persistUpdate($request, $connection, $auditLogger);
+    }
+
+    public function updateForOrganization(
+        StoreApiConnectionRequest $request,
+        Organization $organization,
+        OrganizationApiConnection $connection,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        abort_unless($connection->organization_id === $organization->id, 404);
+        $this->authorize('update', $connection);
+
+        return $this->persistUpdate($request, $connection, $auditLogger);
+    }
+
+    public function test(OrganizationApiConnection $connection, WordPressDonorSyncService $service): RedirectResponse
+    {
+        $this->authorize('sync', $connection);
+
+        $result = $service->testConnection($connection);
+
+        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+    }
+
+    public function sync(Request $request, OrganizationApiConnection $connection): RedirectResponse
+    {
+        $this->authorize('sync', $connection);
+
+        SyncOrganizationDonorsJob::dispatch($connection->id);
+
+        return back()->with('success', 'Donor sync queued. Refresh shortly to see results.');
+    }
+
+    public function syncRazorpay(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
+        $this->authorize('sync', $connection);
+
+        $result = $service->syncRazorpayCredentials($connection);
+
+        if ($result['ok']) {
+            $auditLogger->log('organization.razorpay_synced_from_wordpress', $connection->organization, null, [
+                'key_id' => $result['key_id'] ?? null,
+                'connection_id' => $connection->id,
+            ], $connection->organization_id);
+        }
+
+        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+    }
+
+    public function razorpayStatus(
+        OrganizationApiConnection $connection,
+        WordPressDonorSyncService $service,
+    ): RedirectResponse {
+        $this->authorize('sync', $connection);
+
+        $result = $service->razorpayStatus($connection);
+        $message = $result['ok']
+            ? ('WordPress Razorpay '.(($result['configured'] ?? false) ? 'configured' : 'not configured')
+                .(! empty($result['key_id_masked']) ? ' ('.$result['key_id_masked'].')' : ''))
+            : ('Could not read Razorpay status: '.($result['message'] ?? 'unknown'));
+
+        return back()->with($result['ok'] ? 'success' : 'error', $message);
+    }
+
+    protected function renderEdit(Organization $organization, WordPressDonorSyncService $syncService): Response
+    {
         $connection = OrganizationApiConnection::query()
-            ->forOrganization($orgId)
+            ->forOrganization($organization->id)
             ->first();
 
         $history = SyncRun::query()
-            ->forOrganization($orgId)
+            ->forOrganization($organization->id)
             ->latest()
             ->limit(20)
             ->get();
 
         return Inertia::render('Sync/Settings', [
+            'organization' => [
+                'id' => $organization->id,
+                'name' => $organization->name,
+            ],
             'connection' => $connection?->toSafeArray(),
             'history' => $history,
             'authTypes' => collect(ApiAuthType::cases())->map(fn ($t) => [
@@ -44,21 +157,38 @@ class ApiConnectionController extends Controller
                 'label' => $t->label(),
             ]),
             'defaultMappings' => $syncService->defaultFieldMappings(),
+            'routes' => [
+                'store' => route('organizations.sync.store', $organization),
+                'update' => $connection
+                    ? route('organizations.sync.update', [$organization, $connection])
+                    : null,
+                'test' => $connection
+                    ? route('organizations.sync.test', [$organization, $connection])
+                    : null,
+                'run' => $connection
+                    ? route('organizations.sync.run', [$organization, $connection])
+                    : null,
+                'razorpay' => $connection
+                    ? route('organizations.sync.razorpay', [$organization, $connection])
+                    : null,
+                'razorpay_status' => $connection
+                    ? route('organizations.sync.razorpay-status', [$organization, $connection])
+                    : null,
+                'profile' => route('organizations.show', $organization),
+            ],
         ]);
     }
 
-    public function store(StoreApiConnectionRequest $request, AuditLogger $auditLogger): RedirectResponse
-    {
-        $orgId = OrganizationContext::id();
-        abort_unless($orgId, 403);
-        $organization = Organization::findOrFail($orgId);
-        $this->authorize('manageSync', $organization);
-
+    protected function persistNew(
+        StoreApiConnectionRequest $request,
+        Organization $organization,
+        AuditLogger $auditLogger,
+    ): RedirectResponse {
         $data = $request->validated();
         $credentials = $this->buildCredentials($data);
 
         $connection = OrganizationApiConnection::query()->updateOrCreate(
-            ['organization_id' => $orgId],
+            ['organization_id' => $organization->id],
             [
                 'name' => $data['name'],
                 'base_url' => $data['base_url'],
@@ -74,26 +204,21 @@ class ApiConnectionController extends Controller
             ],
         );
 
-        // Preserve existing credentials when form sends empty secrets
-        if (empty($credentials) && $connection->wasRecentlyCreated === false) {
-            // updateOrCreate already wrote null; restore if previously set via separate update
-        }
-
         $auditLogger->log('api_connection.updated', $connection, null, [
             'base_url' => $connection->base_url,
             'auth_type' => $connection->auth_type?->value,
-        ], $orgId);
+        ], $organization->id);
 
-        return back()->with('success', 'API connection saved. Credentials are encrypted at rest.');
+        return redirect()
+            ->route('organizations.sync.edit', $organization)
+            ->with('success', 'WordPress site connected. Credentials are encrypted at rest.');
     }
 
-    public function update(
+    protected function persistUpdate(
         StoreApiConnectionRequest $request,
         OrganizationApiConnection $connection,
         AuditLogger $auditLogger,
     ): RedirectResponse {
-        $this->authorize('update', $connection);
-
         $data = $request->validated();
         $credentials = $this->buildCredentials($data);
 
@@ -116,54 +241,26 @@ class ApiConnectionController extends Controller
             'base_url' => $connection->base_url,
         ], $connection->organization_id);
 
-        return back()->with('success', 'API connection updated.');
+        return redirect()
+            ->route('organizations.sync.edit', $connection->organization_id)
+            ->with('success', 'WordPress site connection updated.');
     }
 
-    public function test(OrganizationApiConnection $connection, WordPressDonorSyncService $service): RedirectResponse
+    protected function resolveOrganization(?Organization $organization): Organization
     {
-        $this->authorize('sync', $connection);
+        if ($organization) {
+            $this->authorize('manageSync', $organization);
 
-        $result = $service->testConnection($connection);
-
-        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
-    }
-
-    public function sync(Request $request, OrganizationApiConnection $connection): RedirectResponse
-    {
-        $this->authorize('sync', $connection);
-
-        SyncOrganizationDonorsJob::dispatch($connection->id);
-
-        return back()->with('success', 'Donor sync queued. Refresh shortly to see results.');
-    }
-
-    public function syncRazorpay(OrganizationApiConnection $connection, WordPressDonorSyncService $service, AuditLogger $auditLogger): RedirectResponse
-    {
-        $this->authorize('sync', $connection);
-
-        $result = $service->syncRazorpayCredentials($connection);
-
-        if ($result['ok']) {
-            $auditLogger->log('organization.razorpay_synced_from_wordpress', $connection->organization, null, [
-                'key_id' => $result['key_id'] ?? null,
-                'connection_id' => $connection->id,
-            ], $connection->organization_id);
+            return $organization;
         }
 
-        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
-    }
+        $orgId = OrganizationContext::id();
+        abort_unless($orgId, 403, 'Select an organization first.');
 
-    public function razorpayStatus(OrganizationApiConnection $connection, WordPressDonorSyncService $service): RedirectResponse
-    {
-        $this->authorize('sync', $connection);
+        $organization = Organization::query()->findOrFail($orgId);
+        $this->authorize('manageSync', $organization);
 
-        $result = $service->razorpayStatus($connection);
-        $message = $result['ok']
-            ? ('WordPress Razorpay '.(($result['configured'] ?? false) ? 'configured' : 'not configured')
-                .(! empty($result['key_id_masked']) ? ' ('.$result['key_id_masked'].')' : ''))
-            : ('Could not read Razorpay status: '.($result['message'] ?? 'unknown'));
-
-        return back()->with($result['ok'] ? 'success' : 'error', $message);
+        return $organization;
     }
 
     /**

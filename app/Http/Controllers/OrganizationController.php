@@ -133,6 +133,8 @@ class OrganizationController extends Controller
                 'razorpay_key_secret' => null,
                 'razorpay_webhook_secret' => null,
             ],
+            'apiConnection' => $organization->apiConnection?->toSafeArray(),
+            'canManageSync' => request()->user()?->can('manageSync', $organization) ?? false,
             'volunteers' => $volunteers,
             'recentDonations' => $recentDonations,
             'recentPayments' => $recentPayments,

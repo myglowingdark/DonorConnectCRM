@@ -110,7 +110,14 @@ export default function AdminDashboard({
                             </li>
                             <li className="flex justify-between">
                                 <span>Sync errors</span>
-                                <Link href={route('sync.edit')} className="font-semibold text-error">
+                                <Link
+                                    href={
+                                        organization?.id
+                                            ? route('organizations.sync.edit', organization.id)
+                                            : route('organization.profile')
+                                    }
+                                    className="font-semibold text-error"
+                                >
                                     {pendingActions.sync_errors}
                                 </Link>
                             </li>

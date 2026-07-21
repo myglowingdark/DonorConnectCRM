@@ -27,6 +27,8 @@ function UsageBar({ label, used, limit }) {
 
 export default function OrganizationShow({
     organization,
+    apiConnection,
+    canManageSync,
     volunteers,
     recentDonations,
     recentPayments,
@@ -186,6 +188,56 @@ export default function OrganizationShow({
             )}
 
             <div className="grid gap-6 xl:grid-cols-2">
+                <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card xl:col-span-2">
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 className="font-semibold">WordPress / DonorConnect site</h3>
+                            <p className="mt-1 text-xs text-on-surface-variant">
+                                This organization connects its own WordPress site. Super Admin or Org Admin can
+                                configure the Bridge credentials.
+                            </p>
+                        </div>
+                        {canManageSync && (
+                            <Link
+                                href={route('organizations.sync.edit', organization.id)}
+                                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                            >
+                                {apiConnection ? 'Manage connection' : 'Connect WordPress site'}
+                            </Link>
+                        )}
+                    </div>
+                    {apiConnection ? (
+                        <div className="grid gap-3 sm:grid-cols-3 text-sm">
+                            <div>
+                                <p className="text-xs text-on-surface-variant">Status</p>
+                                <p className="font-medium capitalize">
+                                    {String(apiConnection.sync_status || 'idle').replaceAll('_', ' ')}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-on-surface-variant">Last synced</p>
+                                <p className="font-medium">{formatDateTime(apiConnection.last_synced_at) || '—'}</p>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs text-on-surface-variant">Base URL</p>
+                                <p className="truncate font-medium" title={apiConnection.base_url}>
+                                    {apiConnection.base_url || '—'}
+                                </p>
+                            </div>
+                            {apiConnection.last_error && (
+                                <p className="sm:col-span-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">
+                                    {apiConnection.last_error}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-on-surface-variant">
+                            No site connected yet. Install DonorConnect Bridge on the org WordPress site, then connect
+                            here.
+                        </p>
+                    )}
+                </section>
+
                 <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                     <div className="mb-3 flex items-center justify-between">
                         <h3 className="font-semibold">Volunteers</h3>

@@ -174,7 +174,7 @@ class QueueDialerController extends Controller
                 $source = 'crm';
             } else {
                 throw ValidationException::withMessages([
-                    'razorpay' => 'Razorpay is not configured. Sync keys from WordPress (API Sync → Sync Razorpay) or enter keys on Org profile.',
+                    'razorpay' => 'Razorpay is not configured. Sync keys from WordPress (Org profile → WordPress site → Sync Razorpay) or enter keys on Org profile.',
                 ]);
             }
         } catch (ValidationException $e) {

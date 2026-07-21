@@ -66,5 +66,5 @@ Upserts on `(organization_id, external_donor_id)` and `(organization_id, externa
 
 ## Manual & scheduled sync
 
-- UI: **API Sync** → Test connection / Sync now (queued).
+- UI: **Org profile → WordPress site** (or Team → WordPress site) → Test connection / Sync now (queued). Super Admin or Org Admin.
 - Schedule: hourly for active connections (`routes/console.php`).

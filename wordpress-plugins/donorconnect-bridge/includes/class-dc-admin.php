@@ -101,7 +101,7 @@ class DC_Bridge_Admin {
 			<div class="dc-grid">
 				<div class="dc-card">
 					<h2><?php esc_html_e( 'Secure link credentials', 'donorconnect-bridge' ); ?></h2>
-					<p><?php esc_html_e( 'Paste these into DonorConnect CRM → Insights → API Sync for this organization. Each partner site has unique credentials.', 'donorconnect-bridge' ); ?></p>
+					<p><?php esc_html_e( 'Paste these into DonorConnect CRM → Org profile → WordPress site (or Team → WordPress site) for this organization. Each partner site has unique credentials. Super Admin or Org Admin can connect.', 'donorconnect-bridge' ); ?></p>
 					<table class="form-table">
 						<tr>
 							<th><?php esc_html_e( 'Site ID', 'donorconnect-bridge' ); ?></th>

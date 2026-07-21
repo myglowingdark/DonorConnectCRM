@@ -9,17 +9,17 @@ class OrganizationApiConnectionPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isSuperAdmin() || $user->isOrganizationAdmin();
     }
 
     public function view(User $user, OrganizationApiConnection $connection): bool
     {
-        return $user->belongsToOrganization($connection->organization_id) && $user->isAdmin();
+        return $user->can('manageSync', $connection->organization);
     }
 
     public function create(User $user): bool
     {
-        return $user->isAdmin();
+        return $user->isSuperAdmin() || $user->isOrganizationAdmin();
     }
 
     public function update(User $user, OrganizationApiConnection $connection): bool

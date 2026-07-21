@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Sync;
 
 use App\Enums\ApiAuthType;
+use App\Models\Organization;
+use App\Models\OrganizationApiConnection;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +12,22 @@ class StoreApiConnectionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        $user = $this->user();
+        if (! $user) {
+            return false;
+        }
+
+        $organization = $this->route('organization');
+        if ($organization instanceof Organization) {
+            return $user->can('manageSync', $organization);
+        }
+
+        $connection = $this->route('connection');
+        if ($connection instanceof OrganizationApiConnection) {
+            return $user->can('update', $connection);
+        }
+
+        return $user->isSuperAdmin() || $user->isOrganizationAdmin();
     }
 
     public function rules(): array

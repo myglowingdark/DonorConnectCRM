@@ -30,6 +30,7 @@ const adminNav = [
         children: [
             { href: 'users.index', label: 'Volunteers', icon: 'volunteer_activism' },
             { href: 'organization.profile', label: 'Org profile', icon: 'apartment' },
+            { href: 'organizations.sync.edit', label: 'WordPress site', icon: 'language', orgParam: true },
             { href: 'onboarding.show', label: 'Onboarding', icon: 'checklist' },
         ],
     },
@@ -58,7 +59,6 @@ const adminNav = [
             { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
             { href: 'insights.index', label: 'ROI & forecast', icon: 'insights' },
             { href: 'audit.index', label: 'Audit log', icon: 'history' },
-            { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
         ],
     },
     {
@@ -81,6 +81,7 @@ const superAdminNav = [
         icon: 'apartment',
         children: [
             { href: 'organizations.index', label: 'All organizations', icon: 'apartment' },
+            { href: 'organizations.sync.edit', label: 'WordPress site', icon: 'language', orgParam: true },
             { href: 'users.index', label: 'Users', icon: 'manage_accounts' },
             { href: 'margin.index', label: 'Margin dashboard', icon: 'account_balance' },
             { href: 'idle-pool.index', label: 'Idle telecallers', icon: 'groups_3' },
@@ -123,7 +124,6 @@ const superAdminNav = [
             { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
             { href: 'insights.index', label: 'ROI & forecast', icon: 'insights' },
             { href: 'audit.index', label: 'Audit log', icon: 'history' },
-            { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
         ],
     },
     {
@@ -139,22 +139,26 @@ const superAdminNav = [
     { href: 'notifications.index', label: 'Alerts', icon: 'notifications' },
 ];
 
-function filterNavByFeatures(items, features = []) {
+function filterNavByFeatures(items, features = [], currentOrganization = null) {
     return items
         .map((item) => {
             if (item.children) {
-                const children = filterNavByFeatures(item.children, features);
+                const children = filterNavByFeatures(item.children, features, currentOrganization);
                 if (children.length === 0) return null;
                 return { ...item, children };
             }
+            if (item.orgParam && !currentOrganization?.id) return null;
             if (item.feature && !features.includes(item.feature)) return null;
             return item;
         })
         .filter(Boolean);
 }
 
-function safeRoute(name) {
+function safeRoute(name, orgId = null) {
     try {
+        if (orgId) {
+            return route(name, orgId);
+        }
         return route(name);
     } catch {
         return '#';
@@ -163,13 +167,16 @@ function safeRoute(name) {
 
 function isActiveHref(href) {
     try {
+        if (href === 'organizations.sync.edit') {
+            return route().current('organizations.sync.*') || route().current('sync.*');
+        }
         return route().current(href) || route().current(`${href.split('.')[0]}.*`);
     } catch {
         return false;
     }
 }
 
-function NavItem({ item, onClose }) {
+function NavItem({ item, onClose, currentOrganization }) {
     if (item.children) {
         const childActive = item.children.some((c) => isActiveHref(c.href));
         const [open, setOpen] = useState(childActive);
@@ -192,7 +199,12 @@ function NavItem({ item, onClose }) {
                 {open && (
                     <div className="ml-4 space-y-1 border-l border-outline-variant pl-2">
                         {item.children.map((child) => (
-                            <NavItem key={child.href} item={child} onClose={onClose} />
+                            <NavItem
+                                key={child.href + (child.label || '')}
+                                item={child}
+                                onClose={onClose}
+                                currentOrganization={currentOrganization}
+                            />
                         ))}
                     </div>
                 )}
@@ -200,7 +212,9 @@ function NavItem({ item, onClose }) {
         );
     }
 
-    const href = safeRoute(item.href);
+    const href = item.orgParam
+        ? safeRoute(item.href, currentOrganization?.id)
+        : safeRoute(item.href);
     const active = isActiveHref(item.href);
 
     return (
@@ -227,9 +241,8 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
         let nav = volunteerNav;
         if (role === 'super_admin') nav = superAdminNav;
         else if (role === 'organization_admin') nav = adminNav;
-        if (role === 'super_admin') return nav;
-        return filterNavByFeatures(nav, features);
-    }, [role, features]);
+        return filterNavByFeatures(nav, features, currentOrganization);
+    }, [role, features, currentOrganization]);
 
     return (
         <>
@@ -271,7 +284,12 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
 
                 <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 pb-2">
                     {links.map((link) => (
-                        <NavItem key={link.href || link.label} item={link} onClose={onClose} />
+                        <NavItem
+                            key={link.href || link.label}
+                            item={link}
+                            onClose={onClose}
+                            currentOrganization={currentOrganization}
+                        />
                     ))}
                 </nav>
 

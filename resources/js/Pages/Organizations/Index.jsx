@@ -48,6 +48,9 @@ export default function OrganizationsIndex({ organizations }) {
                                     <Link href={route('organizations.show', org.id)} className="mr-3 text-xs font-semibold text-secondary">
                                         Profile
                                     </Link>
+                                    <Link href={route('organizations.sync.edit', org.id)} className="mr-3 text-xs font-semibold text-secondary">
+                                        WordPress
+                                    </Link>
                                     <Link href={route('organizations.edit', org.id)} className="text-xs font-semibold text-secondary">
                                         Edit
                                     </Link>

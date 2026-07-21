@@ -125,26 +125,27 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/transfers/{transfer}/reject', [TransferController::class, 'reject'])->name('transfers.reject');
         Route::post('/transfers/{transfer}/cancel', [TransferController::class, 'cancel'])->name('transfers.cancel');
 
+        // Current-workspace aliases (org already selected). Prefer organizations.sync.* for explicit org targeting.
         Route::get('/sync', [ApiConnectionController::class, 'edit'])
-            ->middleware('role:admin')
+            ->middleware('role:super_admin,organization_admin')
             ->name('sync.edit');
         Route::post('/sync', [ApiConnectionController::class, 'store'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.store');
         Route::put('/sync/{connection}', [ApiConnectionController::class, 'update'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.update');
         Route::post('/sync/{connection}/test', [ApiConnectionController::class, 'test'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.test');
         Route::post('/sync/{connection}/run', [ApiConnectionController::class, 'sync'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.run');
         Route::post('/sync/{connection}/razorpay', [ApiConnectionController::class, 'syncRazorpay'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.razorpay');
         Route::post('/sync/{connection}/razorpay-status', [ApiConnectionController::class, 'razorpayStatus'])
-            ->middleware(['role:admin', 'throttle:sync'])
+            ->middleware(['role:super_admin,organization_admin', 'throttle:sync'])
             ->name('sync.razorpay-status');
 
         Route::get('/reports', [ReportController::class, 'index'])
@@ -357,6 +358,30 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/organizations/{organization}/razorpay', [OrganizationController::class, 'updateRazorpay'])
         ->middleware('role:admin')
         ->name('organizations.razorpay.update');
+
+    Route::middleware('role:super_admin,organization_admin')->group(function () {
+        Route::get('/organizations/{organization}/sync', [ApiConnectionController::class, 'editForOrganization'])
+            ->name('organizations.sync.edit');
+        Route::post('/organizations/{organization}/sync', [ApiConnectionController::class, 'storeForOrganization'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.store');
+        Route::put('/organizations/{organization}/sync/{connection}', [ApiConnectionController::class, 'updateForOrganization'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.update');
+        Route::post('/organizations/{organization}/sync/{connection}/test', [ApiConnectionController::class, 'test'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.test');
+        Route::post('/organizations/{organization}/sync/{connection}/run', [ApiConnectionController::class, 'sync'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.run');
+        Route::post('/organizations/{organization}/sync/{connection}/razorpay', [ApiConnectionController::class, 'syncRazorpay'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.razorpay');
+        Route::post('/organizations/{organization}/sync/{connection}/razorpay-status', [ApiConnectionController::class, 'razorpayStatus'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.razorpay-status');
+    });
+
     Route::post('/organizations/{organization}/offboard', [OrganizationExportController::class, 'offboard'])
         ->middleware('role:super_admin')
         ->name('organizations.offboard');
