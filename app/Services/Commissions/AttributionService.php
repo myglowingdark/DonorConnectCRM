@@ -46,21 +46,22 @@ class AttributionService
         }
 
         if ($created !== []) {
-            $admins = User::query()
-                ->where(function ($q) use ($donor) {
-                    $q->where('role', UserRole::SuperAdmin)
-                        ->orWhere(function ($q2) use ($donor) {
-                            $q2->where('role', UserRole::OrganizationAdmin)
-                                ->whereHas('organizations', fn ($oq) => $oq->where('organizations.id', $donor->organization_id));
-                        });
-                })
-                ->where('is_active', true)
-                ->get();
+        $admins = User::query()
+            ->where('is_active', true)
+            ->where('role', UserRole::OrganizationAdmin)
+            ->whereHas(
+                'organizations',
+                fn ($q) => $q->where('organizations.id', $donor->organization_id)
+                    ->where('organization_user.is_active', true)
+            )
+            ->get();
 
+        if ($admins->isNotEmpty()) {
             Notification::send(
                 $admins,
                 new DonationAttributionNotification($created[0], 'queued', count($created))
             );
+        }
 
             $this->auditLogger->log(
                 'donation.attribution_queued',

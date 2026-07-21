@@ -15,6 +15,11 @@ class CommissionSetting extends Model
         'shared_percent',
         'shared_eligibility',
         'volunteer_overrides',
+        'internal_individual_enabled',
+        'internal_individual_default_percent',
+        'internal_shared_enabled',
+        'internal_shared_percent',
+        'internal_volunteer_overrides',
         'effective_from',
         'effective_to',
     ];
@@ -27,6 +32,11 @@ class CommissionSetting extends Model
             'individual_default_percent' => 'decimal:2',
             'shared_percent' => 'decimal:2',
             'volunteer_overrides' => 'array',
+            'internal_individual_enabled' => 'boolean',
+            'internal_shared_enabled' => 'boolean',
+            'internal_individual_default_percent' => 'decimal:2',
+            'internal_shared_percent' => 'decimal:2',
+            'internal_volunteer_overrides' => 'array',
             'effective_from' => 'date',
             'effective_to' => 'date',
         ];
@@ -37,15 +47,19 @@ class CommissionSetting extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function rateForVolunteer(int $volunteerId): float
+    public function rateForVolunteer(int $volunteerId, bool $internal = false): float
     {
-        $overrides = $this->volunteer_overrides ?? [];
+        $overrides = $internal
+            ? ($this->internal_volunteer_overrides ?? [])
+            : ($this->volunteer_overrides ?? []);
         $key = (string) $volunteerId;
 
         if (array_key_exists($key, $overrides) && is_numeric($overrides[$key])) {
             return (float) $overrides[$key];
         }
 
-        return (float) $this->individual_default_percent;
+        return (float) ($internal
+            ? $this->internal_individual_default_percent
+            : $this->individual_default_percent);
     }
 }

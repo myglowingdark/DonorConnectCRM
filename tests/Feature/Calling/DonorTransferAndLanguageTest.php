@@ -102,7 +102,7 @@ class DonorTransferAndLanguageTest extends TestCase
         $this->assertSame(TransferStatus::Pending, $transfer->status);
 
         Notification::assertSentTo($to, DonorTransferNotification::class);
-        Notification::assertSentTo($admin, DonorTransferNotification::class);
+        Notification::assertNotSentTo($admin, DonorTransferNotification::class);
 
         $this->assertTrue(
             DonorAssignment::query()

@@ -114,6 +114,9 @@ class UserController extends Controller
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
             'is_active' => $data['is_active'] ?? true,
+            'is_internal_telecaller' => $request->user()->isSuperAdmin()
+                && ($data['role'] ?? '') === UserRole::Volunteer->value
+                && (bool) ($data['is_internal_telecaller'] ?? false),
         ]);
 
         $this->syncOrganizations($request->user(), $user, $organizationIds);
@@ -148,6 +151,13 @@ class UserController extends Controller
             'is_active' => $data['is_active'] ?? $user->is_active,
         ]);
 
+        if ($request->user()->isSuperAdmin()) {
+            $user->is_internal_telecaller = ($data['role'] ?? $user->role?->value) === UserRole::Volunteer->value
+                && (bool) ($data['is_internal_telecaller'] ?? false);
+        } elseif (($data['role'] ?? '') !== UserRole::Volunteer->value) {
+            $user->is_internal_telecaller = false;
+        }
+
         if (! empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         }
@@ -157,6 +167,7 @@ class UserController extends Controller
 
         $auditLogger->log('user.updated', $user, $old, [
             'role' => $user->role->value,
+            'is_internal_telecaller' => $user->is_internal_telecaller,
             'organization_ids' => $organizationIds,
         ]);
 

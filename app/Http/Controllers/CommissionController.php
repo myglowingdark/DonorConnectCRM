@@ -29,20 +29,40 @@ class CommissionController extends Controller
                 'shared_percent' => 0,
                 'shared_eligibility' => 'active_contributors',
                 'volunteer_overrides' => [],
+                'internal_individual_enabled' => true,
+                'internal_individual_default_percent' => 5,
+                'internal_shared_enabled' => true,
+                'internal_shared_percent' => 0,
+                'internal_volunteer_overrides' => [],
             ]
         );
 
-        $volunteers = User::query()
+        $allVolunteers = User::query()
             ->where('role', UserRole::Volunteer)
             ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $orgId))
             ->orderBy('name')
-            ->get(['id', 'name', 'email'])
+            ->get(['id', 'name', 'email', 'is_internal_telecaller']);
+
+        $orgVolunteers = $allVolunteers
+            ->where('is_internal_telecaller', false)
+            ->values()
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'override_percent' => $settings->volunteer_overrides[(string) $user->id] ?? null,
-                'effective_percent' => $settings->rateForVolunteer($user->id),
+                'effective_percent' => $settings->rateForVolunteer($user->id, false),
+            ]);
+
+        $internalVolunteers = $allVolunteers
+            ->where('is_internal_telecaller', true)
+            ->values()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'override_percent' => $settings->internal_volunteer_overrides[(string) $user->id] ?? null,
+                'effective_percent' => $settings->rateForVolunteer($user->id, true),
             ]);
 
         return Inertia::render('Commissions/Settings', [
@@ -54,9 +74,15 @@ class CommissionController extends Controller
                 'shared_eligibility' => $settings->shared_eligibility,
                 'effective_from' => $settings->effective_from?->toDateString(),
                 'effective_to' => $settings->effective_to?->toDateString(),
+                'internal_individual_enabled' => $settings->internal_individual_enabled,
+                'internal_individual_default_percent' => (float) $settings->internal_individual_default_percent,
+                'internal_shared_enabled' => $settings->internal_shared_enabled,
+                'internal_shared_percent' => (float) $settings->internal_shared_percent,
             ],
-            'volunteers' => $volunteers,
+            'volunteers' => $orgVolunteers,
+            'internalVolunteers' => $internalVolunteers,
             'canEdit' => $request->user()->isSuperAdmin() || $request->user()->isOrganizationAdmin(),
+            'canEditInternal' => $request->user()->isSuperAdmin(),
         ]);
     }
 
@@ -66,9 +92,43 @@ class CommissionController extends Controller
         abort_unless($orgId, 403);
 
         $data = $request->validated();
-        $overrides = [];
+        $settings = CommissionSetting::query()->firstOrCreate(['organization_id' => $orgId]);
 
-        foreach ($data['volunteer_overrides'] ?? [] as $row) {
+        $overrides = $this->parseOverrides($data['volunteer_overrides'] ?? []);
+
+        $payload = [
+            'individual_enabled' => (bool) ($data['individual_enabled'] ?? false),
+            'individual_default_percent' => $data['individual_default_percent'] ?? 0,
+            'shared_enabled' => (bool) ($data['shared_enabled'] ?? false),
+            'shared_percent' => $data['shared_percent'] ?? 0,
+            'shared_eligibility' => $data['shared_eligibility'] ?? 'active_contributors',
+            'volunteer_overrides' => $overrides,
+            'effective_from' => $data['effective_from'] ?? null,
+            'effective_to' => $data['effective_to'] ?? null,
+        ];
+
+        if ($request->user()->isSuperAdmin()) {
+            $payload['internal_individual_enabled'] = (bool) ($data['internal_individual_enabled'] ?? false);
+            $payload['internal_individual_default_percent'] = $data['internal_individual_default_percent'] ?? 0;
+            $payload['internal_shared_enabled'] = (bool) ($data['internal_shared_enabled'] ?? false);
+            $payload['internal_shared_percent'] = $data['internal_shared_percent'] ?? 0;
+            $payload['internal_volunteer_overrides'] = $this->parseOverrides($data['internal_volunteer_overrides'] ?? []);
+        }
+
+        $settings->fill($payload);
+        $settings->save();
+
+        return back()->with('success', 'Commission / payment settings saved.');
+    }
+
+    /**
+     * @param  array<int, array{volunteer_id?: mixed, percent?: mixed}>  $rows
+     * @return array<string, float>
+     */
+    protected function parseOverrides(array $rows): array
+    {
+        $overrides = [];
+        foreach ($rows as $row) {
             if (! isset($row['volunteer_id'])) {
                 continue;
             }
@@ -78,19 +138,6 @@ class CommissionController extends Controller
             $overrides[(string) $row['volunteer_id']] = (float) $row['percent'];
         }
 
-        $settings = CommissionSetting::query()->firstOrCreate(['organization_id' => $orgId]);
-        $settings->fill([
-            'individual_enabled' => (bool) ($data['individual_enabled'] ?? false),
-            'individual_default_percent' => $data['individual_default_percent'] ?? 0,
-            'shared_enabled' => (bool) ($data['shared_enabled'] ?? false),
-            'shared_percent' => $data['shared_percent'] ?? 0,
-            'shared_eligibility' => $data['shared_eligibility'] ?? 'active_contributors',
-            'volunteer_overrides' => $overrides,
-            'effective_from' => $data['effective_from'] ?? null,
-            'effective_to' => $data['effective_to'] ?? null,
-        ]);
-        $settings->save();
-
-        return back()->with('success', 'Commission / payment settings saved.');
+        return $overrides;
     }
 }

@@ -17,7 +17,7 @@ class UpdateCommissionSettingsRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'individual_enabled' => ['sometimes', 'boolean'],
             'individual_default_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'shared_enabled' => ['sometimes', 'boolean'],
@@ -29,6 +29,20 @@ class UpdateCommissionSettingsRequest extends FormRequest
             'volunteer_overrides.*.volunteer_id' => ['required', 'integer'],
             'volunteer_overrides.*.percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
+
+        if ($this->user()?->isSuperAdmin()) {
+            $rules = array_merge($rules, [
+                'internal_individual_enabled' => ['sometimes', 'boolean'],
+                'internal_individual_default_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'internal_shared_enabled' => ['sometimes', 'boolean'],
+                'internal_shared_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'internal_volunteer_overrides' => ['nullable', 'array'],
+                'internal_volunteer_overrides.*.volunteer_id' => ['required', 'integer'],
+                'internal_volunteer_overrides.*.percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            ]);
+        }
+
+        return $rules;
     }
 
     public function withValidator(Validator $validator): void
@@ -41,26 +55,36 @@ class UpdateCommissionSettingsRequest extends FormRequest
                 return;
             }
 
-            $ids = collect($this->input('volunteer_overrides', []))
-                ->pluck('volunteer_id')
-                ->filter()
-                ->map(fn ($id) => (int) $id)
-                ->unique()
-                ->values();
+            $this->assertVolunteers($validator, 'volunteer_overrides', $orgId, internal: false);
 
-            if ($ids->isEmpty()) {
-                return;
-            }
-
-            $validCount = User::query()
-                ->where('role', UserRole::Volunteer)
-                ->whereIn('id', $ids)
-                ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $orgId))
-                ->count();
-
-            if ($validCount !== $ids->count()) {
-                $validator->errors()->add('volunteer_overrides', 'One or more volunteers are invalid for this organization.');
+            if ($this->user()?->isSuperAdmin()) {
+                $this->assertVolunteers($validator, 'internal_volunteer_overrides', $orgId, internal: true);
             }
         });
+    }
+
+    protected function assertVolunteers(Validator $validator, string $field, int $orgId, bool $internal): void
+    {
+        $ids = collect($this->input($field, []))
+            ->pluck('volunteer_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $validCount = User::query()
+            ->where('role', UserRole::Volunteer)
+            ->where('is_internal_telecaller', $internal)
+            ->whereIn('id', $ids)
+            ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $orgId))
+            ->count();
+
+        if ($validCount !== $ids->count()) {
+            $validator->errors()->add($field, 'One or more volunteers are invalid for this pool.');
+        }
     }
 }

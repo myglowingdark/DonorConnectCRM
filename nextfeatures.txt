@@ -1,34 +1,28 @@
-performance statistics graph
+[tested] performance statistics graph
 
+[tested] org admin should be able to set the volunteer comfortable languages
+and also during the call the volunteer can mark the donors preferred languages
 
-org admin should be basle to set set. the voulenter comfortable languages 
-and also during the call the vaulenter can mark the donars prefered lanuages 
+[tested] volunteer can transfer the donors to other volunteer if they think they can be converted by other person , this is like interaction transfer
+but the receiver volunteer should accept the request and a notification will also go to admin , admin should be able to see the transfer details
+and a transferred tag
 
+[tested] Email , and whatsapp message sent from the dashboard only to the donor from the respective orgs
+short message can be also sent
 
-vouleneter can transfer the donars to other vouleneter if they think they can be converted by other person , this is like intraction transfer 
-but the reciver vouleneter should accept the request and a notificvation will aslo go ato admin , admin should be bable to see the transfer details 
-and a transfered tag
-
-Email , and whatsapp message sent from the dash board only  to the  donar from teh respective orgs
-short message can be also sent 
-
-
-
-
-excel list upload caping wise and org admin can have equal distribution between volunteers and  team
+[tested] excel list upload capping wise and org admin can have equal distribution between volunteers and team
 also and also apply and assign to respective team members
 
+[tested] A handover mechanism , like if someone is leaving the org then the org admin can handover the interactions they have done to others partially or fully
 
-A handover mechnaicm , like if someone is leaving the org then the org admin  can handover the interactions they have done to others partially or fully 
+[tested] super admin configuration for payment per admin org / per volunteer , donors list limit
+smtp / org wise smtp /
 
+[tested] email whatsapp configuration and templates set by admin
 
+[tested] notification icon should , show count and , the notification should redirect to the relevant actions
 
-super admin configuration for payment per admin org / per vouleneter , donars list limt 
-smtp / org wise smtp / 
+[tested] volunteers CAN BE OF TWO TYPES OWNED BY ORGANIZATION OR OWNED BY SUPER ADMIN , Name super admin owner volunteer as Internal telecallers
+internal Telecallers commission data for each organization will be set by superadmin only and based on that the commission will given , for internal team all there will be shared commission which will lie between the internal teams only
 
-
-
-
-email whatsapp  configuartion and templates set by admin
-
-notification icon should , show count and , the notification should redirect to the relevent actiosn
+[tested] and the notification should be visible to relevant person only not all , like if transfer is done between two peoples they will only get the notification , same will handover transfer , lead added , lead assigned

@@ -3,14 +3,12 @@
 namespace App\Services\Donors;
 
 use App\Enums\TransferStatus;
-use App\Enums\UserRole;
 use App\Models\Donor;
 use App\Models\DonorAssignment;
 use App\Models\DonorTransferRequest;
 use App\Models\User;
 use App\Notifications\DonorTransferNotification;
 use App\Services\AuditLogger;
-use App\Services\Donors\AssignmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -200,33 +198,17 @@ class TransferService
     }
 
     /**
+     * Notify only people directly involved (from / to / requester) — not all admins.
+     *
      * @param  list<int>  $excludeIds
      */
     protected function notifyStakeholders(DonorTransferRequest $transfer, string $event, array $excludeIds = []): void
     {
-        $recipients = collect();
-
-        $recipients->push($transfer->toVolunteer);
-        $recipients->push($transfer->fromVolunteer);
-        $recipients->push($transfer->requester);
-
-        $admins = User::query()
-            ->where('is_active', true)
-            ->where(function ($q) use ($transfer) {
-                $q->where('role', UserRole::SuperAdmin)
-                    ->orWhere(function ($inner) use ($transfer) {
-                        $inner->where('role', UserRole::OrganizationAdmin)
-                            ->whereHas(
-                                'organizations',
-                                fn ($org) => $org->where('organizations.id', $transfer->organization_id)
-                                    ->where('organization_user.is_active', true)
-                            );
-                    });
-            })
-            ->get();
-
-        $recipients = $recipients
-            ->merge($admins)
+        $recipients = collect([
+            $transfer->toVolunteer,
+            $transfer->fromVolunteer,
+            $transfer->requester,
+        ])
             ->filter()
             ->unique('id')
             ->reject(fn (User $user) => in_array($user->id, $excludeIds, true))

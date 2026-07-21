@@ -7,8 +7,10 @@ use App\Models\DonorAssignment;
 use App\Models\DonorHandover;
 use App\Models\DonorInteraction;
 use App\Models\User;
+use App\Notifications\DonorHandoverNotification;
 use App\Services\AuditLogger;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class HandoverService
@@ -103,6 +105,7 @@ class HandoverService
                 $actor,
                 $cap,
                 $donors->pluck('id')->all(),
+                notifyAssignees: false,
             );
 
             $interactionsMoved = 0;
@@ -149,6 +152,21 @@ class HandoverService
                 $organizationId,
                 $actor,
             );
+
+            $handover->load('fromVolunteer');
+            $notify = $recipients
+                ->push($from)
+                ->filter()
+                ->unique('id')
+                ->reject(fn (User $u) => $u->id === $actor->id)
+                ->values();
+
+            if ($notify->isNotEmpty()) {
+                Notification::send(
+                    $notify,
+                    new DonorHandoverNotification($handover)
+                );
+            }
 
             return $handover;
         });

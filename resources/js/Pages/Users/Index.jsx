@@ -27,6 +27,7 @@ export default function UsersIndex({
         role: 'volunteer',
         organization_ids: [],
         is_active: true,
+        is_internal_telecaller: false,
     });
 
     const openCreate = () => {
@@ -49,6 +50,7 @@ export default function UsersIndex({
                     ? [allOrganizations[0].id]
                     : [],
             is_active: true,
+            is_internal_telecaller: false,
         });
         setOpen(true);
     };
@@ -66,6 +68,7 @@ export default function UsersIndex({
             // Only orgs visible to this admin are editable here.
             organization_ids: (user.organizations || []).map((o) => o.id),
             is_active: user.is_active,
+            is_internal_telecaller: !!user.is_internal_telecaller,
         });
         setOpen(true);
     };
@@ -156,6 +159,11 @@ export default function UsersIndex({
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="capitalize">{String(user.role).replaceAll('_', ' ')}</div>
+                                        {user.is_internal_telecaller && (
+                                            <div className="mt-1 text-[10px] font-semibold uppercase text-secondary">
+                                                Internal telecaller
+                                            </div>
+                                        )}
                                         {(user.languages || []).length > 0 && (
                                             <div className="mt-1 text-xs text-on-surface-variant">
                                                 {(user.languages || [])
@@ -301,6 +309,16 @@ export default function UsersIndex({
                                     ))}
                                 </div>
                             </div>
+                            {isSuperAdmin && form.data.role === 'volunteer' && (
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.data.is_internal_telecaller}
+                                        onChange={(e) => form.setData('is_internal_telecaller', e.target.checked)}
+                                    />
+                                    Internal telecaller (owned by Super Admin)
+                                </label>
+                            )}
                             <label className="flex items-center gap-2 text-sm">
                                 <input
                                     type="checkbox"

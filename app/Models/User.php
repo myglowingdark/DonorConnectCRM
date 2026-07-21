@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'languages', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'languages', 'is_active', 'is_internal_telecaller'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -27,6 +27,7 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'languages' => 'array',
             'is_active' => 'boolean',
+            'is_internal_telecaller' => 'boolean',
         ];
     }
 
@@ -65,6 +66,11 @@ class User extends Authenticatable
     public function isVolunteer(): bool
     {
         return $this->role === UserRole::Volunteer;
+    }
+
+    public function isInternalTelecaller(): bool
+    {
+        return $this->isVolunteer() && $this->is_internal_telecaller;
     }
 
     public function isAdmin(): bool

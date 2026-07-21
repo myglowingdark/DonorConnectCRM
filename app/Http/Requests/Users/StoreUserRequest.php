@@ -34,6 +34,7 @@ class StoreUserRequest extends FormRequest
             'organization_ids' => ['required', 'array', 'min:1'],
             'organization_ids.*' => ['integer', 'exists:organizations,id'],
             'is_active' => ['sometimes', 'boolean'],
+            'is_internal_telecaller' => ['sometimes', 'boolean'],
         ];
     }
 }

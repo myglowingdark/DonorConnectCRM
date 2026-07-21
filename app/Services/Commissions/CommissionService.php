@@ -29,6 +29,11 @@ class CommissionService
                 'shared_percent' => 0,
                 'shared_eligibility' => 'active_contributors',
                 'volunteer_overrides' => [],
+                'internal_individual_enabled' => true,
+                'internal_individual_default_percent' => 5,
+                'internal_shared_enabled' => true,
+                'internal_shared_percent' => 0,
+                'internal_volunteer_overrides' => [],
             ]
         );
     }
@@ -50,37 +55,60 @@ class CommissionService
             ->forOrganization($organizationId)
             ->where('status', AttributionStatus::Approved)
             ->whereHas('donation', fn ($q) => $q->whereBetween('donated_at', [$start, $end]))
-            ->with('donation')
+            ->with(['donation', 'volunteer'])
             ->get();
 
-        $byVolunteer = [];
+        $orgByVolunteer = [];
+        $internalByVolunteer = [];
         $verifiedTotal = 0.0;
+        $orgVerified = 0.0;
+        $internalVerified = 0.0;
 
         foreach ($attributions as $attr) {
             $vid = (int) $attr->volunteer_id;
             $amount = (float) ($attr->donation?->amount ?? 0);
             $verifiedTotal += $amount;
-            $byVolunteer[$vid] = ($byVolunteer[$vid] ?? 0) + $amount;
+            $isInternal = (bool) ($attr->volunteer?->is_internal_telecaller);
+
+            if ($isInternal) {
+                $internalVerified += $amount;
+                $internalByVolunteer[$vid] = ($internalByVolunteer[$vid] ?? 0) + $amount;
+            } else {
+                $orgVerified += $amount;
+                $orgByVolunteer[$vid] = ($orgByVolunteer[$vid] ?? 0) + $amount;
+            }
         }
 
-        $sharedPool = 0.0;
+        $orgSharedPool = 0.0;
         if ($settings->shared_enabled && $settings->shared_percent > 0) {
-            $sharedPool = round($verifiedTotal * ((float) $settings->shared_percent) / 100, 2);
+            $orgSharedPool = round($orgVerified * ((float) $settings->shared_percent) / 100, 2);
         }
-
-        $contributorCount = count(array_filter($byVolunteer, fn ($t) => $t > 0));
-        $sharedEach = ($sharedPool > 0 && $contributorCount > 0)
-            ? round($sharedPool / $contributorCount, 2)
+        $orgContributors = count(array_filter($orgByVolunteer, fn ($t) => $t > 0));
+        $orgSharedEach = ($orgSharedPool > 0 && $orgContributors > 0)
+            ? round($orgSharedPool / $orgContributors, 2)
             : 0.0;
+
+        $internalSharedPool = 0.0;
+        if ($settings->internal_shared_enabled && $settings->internal_shared_percent > 0) {
+            $internalSharedPool = round($internalVerified * ((float) $settings->internal_shared_percent) / 100, 2);
+        }
+        $internalContributors = count(array_filter($internalByVolunteer, fn ($t) => $t > 0));
+        $internalSharedEach = ($internalSharedPool > 0 && $internalContributors > 0)
+            ? round($internalSharedPool / $internalContributors, 2)
+            : 0.0;
+
+        $sharedPool = round($orgSharedPool + $internalSharedPool, 2);
 
         return DB::transaction(function () use (
             $organizationId,
             $period,
             $settings,
-            $byVolunteer,
+            $orgByVolunteer,
+            $internalByVolunteer,
             $verifiedTotal,
             $sharedPool,
-            $sharedEach,
+            $orgSharedEach,
+            $internalSharedEach,
             $actor,
         ) {
             $cycle = CommissionCycle::query()->firstOrNew([
@@ -102,19 +130,20 @@ class CommissionService
                 'paid_at' => null,
             ]);
             $cycle->save();
-
             $cycle->lineItems()->delete();
 
             $individualTotal = 0.0;
             $payableTotal = 0.0;
 
-            foreach ($byVolunteer as $volunteerId => $attributed) {
-                $rate = $settings->individual_enabled
-                    ? $settings->rateForVolunteer((int) $volunteerId)
-                    : 0.0;
-                $individual = $settings->individual_enabled
-                    ? round($attributed * $rate / 100, 2)
-                    : 0.0;
+            $addLine = function (
+                int $volunteerId,
+                float $attributed,
+                bool $internal,
+                float $sharedEach,
+            ) use ($cycle, $organizationId, $settings, &$individualTotal, &$payableTotal) {
+                $enabled = $internal ? $settings->internal_individual_enabled : $settings->individual_enabled;
+                $rate = $enabled ? $settings->rateForVolunteer($volunteerId, $internal) : 0.0;
+                $individual = $enabled ? round($attributed * $rate / 100, 2) : 0.0;
                 $shared = $attributed > 0 ? $sharedEach : 0.0;
                 $final = round($individual + $shared, 2);
 
@@ -133,6 +162,13 @@ class CommissionService
 
                 $individualTotal += $individual;
                 $payableTotal += $final;
+            };
+
+            foreach ($orgByVolunteer as $volunteerId => $attributed) {
+                $addLine((int) $volunteerId, (float) $attributed, false, $orgSharedEach);
+            }
+            foreach ($internalByVolunteer as $volunteerId => $attributed) {
+                $addLine((int) $volunteerId, (float) $attributed, true, $internalSharedEach);
             }
 
             $cycle->update([
