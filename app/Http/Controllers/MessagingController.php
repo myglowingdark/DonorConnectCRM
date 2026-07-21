@@ -18,6 +18,7 @@ use App\Services\SaaS\EntitlementService;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -235,7 +236,7 @@ class MessagingController extends Controller
         $orgId = OrganizationContext::id();
         abort_unless($orgId, 403);
 
-        $data = $request->validated();
+        $data = $request->safe()->except(['attachment', 'remove_attachment']);
         $channel = MessageChannel::from($data['channel']);
 
         if ($channel === MessageChannel::WhatsApp) {
@@ -250,10 +251,18 @@ class MessagingController extends Controller
             $data['variable_schema'] = $data['variable_schema'] ?? null;
         }
 
-        MessageTemplate::create([
+        $attachmentMeta = $this->storeTemplateAttachment($request);
+        $data = [
             ...$data,
+            ...$attachmentMeta,
+            'header_format' => $this->resolveHeaderFormat(
+                (string) ($data['body'] ?? ''),
+                filled($attachmentMeta['attachment_path'] ?? null),
+            ),
             'organization_id' => $orgId,
-        ]);
+        ];
+
+        MessageTemplate::create($data);
 
         return back()->with('success', 'Template created.');
     }
@@ -266,7 +275,7 @@ class MessagingController extends Controller
         $orgId = OrganizationContext::id();
         abort_unless($orgId && $template->organization_id === $orgId, 403);
 
-        $data = $request->validated();
+        $data = $request->safe()->except(['attachment', 'remove_attachment']);
         $channel = MessageChannel::from($data['channel']);
 
         if ($channel === MessageChannel::WhatsApp || $template->isWhatsApp()) {
@@ -283,6 +292,31 @@ class MessagingController extends Controller
             }
         }
 
+        if ($request->boolean('remove_attachment') && ! $request->hasFile('attachment')) {
+            $this->deleteTemplateAttachment($template);
+            $data['attachment_path'] = null;
+            $data['attachment_filename'] = null;
+            $data['attachment_mime'] = null;
+        }
+
+        if ($request->hasFile('attachment')) {
+            $this->deleteTemplateAttachment($template);
+            $data = [
+                ...$data,
+                ...$this->storeTemplateAttachment($request),
+            ];
+        }
+
+        $hasAttachment = filled($data['attachment_path'] ?? $template->attachment_path);
+        if (array_key_exists('attachment_path', $data) && blank($data['attachment_path'])) {
+            $hasAttachment = false;
+        }
+
+        $data['header_format'] = $this->resolveHeaderFormat(
+            (string) ($data['body'] ?? $template->body),
+            $hasAttachment,
+        );
+
         $template->update($data);
 
         return back()->with('success', 'Template updated.');
@@ -298,6 +332,7 @@ class MessagingController extends Controller
             abort_unless($request->user()->isSuperAdmin() || $request->user()->isOrganizationAdmin(), 403);
         }
 
+        $this->deleteTemplateAttachment($template);
         $template->delete();
 
         return back()->with('success', 'Template deleted.');
@@ -381,5 +416,40 @@ class MessagingController extends Controller
             'donor' => $donor->only(['id', 'full_name', 'email', 'phone']),
             'messages' => $messages,
         ]);
+    }
+
+    /**
+     * @return array{attachment_path?: string, attachment_filename?: string, attachment_mime?: string}
+     */
+    protected function storeTemplateAttachment(Request $request): array
+    {
+        if (! $request->hasFile('attachment')) {
+            return [];
+        }
+
+        $file = $request->file('attachment');
+        $path = $file->store('message-templates', 'public');
+
+        return [
+            'attachment_path' => $path,
+            'attachment_filename' => $file->getClientOriginalName(),
+            'attachment_mime' => $file->getClientMimeType() ?: $file->getMimeType(),
+        ];
+    }
+
+    protected function deleteTemplateAttachment(MessageTemplate $template): void
+    {
+        if (filled($template->attachment_path)) {
+            Storage::disk('public')->delete($template->attachment_path);
+        }
+    }
+
+    protected function resolveHeaderFormat(string $body, bool $hasAttachment): string
+    {
+        if ($hasAttachment || preg_match('/\{\{\s*receipt\s*\}\}/i', $body)) {
+            return 'document';
+        }
+
+        return 'none';
     }
 }

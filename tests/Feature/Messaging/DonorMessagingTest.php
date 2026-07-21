@@ -17,8 +17,10 @@ use App\Models\PlatformMessagingSetting;
 use App\Models\User;
 use App\Support\OrganizationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -565,5 +567,257 @@ class DonorMessagingTest extends TestCase
             ->assertRedirect($target);
 
         $this->assertNotNull($notification->fresh()->read_at);
+    }
+
+    public function test_submit_template_to_meta_surfaces_validation_error(): void
+    {
+        Http::fake([
+            'https://graph.facebook.com/v21.0/waba-1/message_templates*' => Http::response([
+                'error' => ['message' => 'Invalid parameter'],
+            ], 400),
+        ]);
+
+        $org = Organization::factory()->create([
+            'feature_overrides' => ['whatsapp' => true],
+        ]);
+
+        PlatformMessagingSetting::current()->update([
+            'whatsapp_enabled' => true,
+            'meta_access_token' => 'platform-token',
+            'meta_phone_number_id' => 'phone-1',
+            'meta_waba_id' => 'waba-1',
+            'meta_app_id' => 'app-1',
+        ]);
+
+        OrganizationMessagingSetting::query()->create([
+            'organization_id' => $org->id,
+            'whatsapp_enabled' => true,
+            'whatsapp_use_platform' => true,
+        ]);
+
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        $template = MessageTemplate::create([
+            'organization_id' => $org->id,
+            'name' => 'Broken',
+            'channel' => MessageChannel::WhatsApp,
+            'body' => 'Hello {{name}}',
+            'is_active' => true,
+            'meta_name' => 'broken_tmpl',
+            'meta_language' => 'en',
+            'meta_category' => 'UTILITY',
+            'meta_status' => MetaTemplateStatus::Draft,
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->from(route('messaging.templates'))
+            ->post(route('messaging.templates.submit-meta', $template))
+            ->assertRedirect(route('messaging.templates'))
+            ->assertSessionHasErrors('whatsapp');
+
+        $this->assertSame(MetaTemplateStatus::Draft, $template->fresh()->meta_status);
+    }
+
+    public function test_submit_whatsapp_template_with_receipt_document_header(): void
+    {
+        Storage::fake('public');
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+
+            if (str_contains($url, '/uploads') && ! str_contains($url, 'upload:')) {
+                return Http::response(['id' => 'upload:session-1'], 200);
+            }
+
+            if (str_contains($url, 'upload:session-1') || str_contains($url, 'upload%3Asession-1')) {
+                return Http::response(['h' => '4::document-handle'], 200);
+            }
+
+            if (str_contains($url, '/message_templates') && $request->method() === 'POST') {
+                return Http::response([
+                    'id' => 'tmpl-doc-1',
+                    'status' => 'PENDING',
+                ], 200);
+            }
+
+            return Http::response(['error' => ['message' => 'Unexpected URL: '.$url]], 500);
+        });
+
+        $org = Organization::factory()->create([
+            'feature_overrides' => ['whatsapp' => true],
+        ]);
+
+        PlatformMessagingSetting::current()->update([
+            'whatsapp_enabled' => true,
+            'meta_access_token' => 'platform-token',
+            'meta_phone_number_id' => 'phone-1',
+            'meta_waba_id' => 'waba-1',
+            'meta_app_id' => 'app-1',
+        ]);
+
+        OrganizationMessagingSetting::query()->create([
+            'organization_id' => $org->id,
+            'whatsapp_enabled' => true,
+            'whatsapp_use_platform' => true,
+        ]);
+
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        $path = 'message-templates/receipt.pdf';
+        Storage::disk('public')->put($path, "%PDF-1.4\n%fake receipt content for tests\n");
+
+        $template = MessageTemplate::create([
+            'organization_id' => $org->id,
+            'name' => 'Receipt thanks',
+            'channel' => MessageChannel::WhatsApp,
+            'body' => 'Hi {{name}}, see {{receipt}} from {{org}}',
+            'is_active' => true,
+            'meta_name' => 'receipt_thanks',
+            'meta_language' => 'en',
+            'meta_category' => 'UTILITY',
+            'meta_status' => MetaTemplateStatus::Draft,
+            'header_format' => 'document',
+            'attachment_path' => $path,
+            'attachment_filename' => 'receipt.pdf',
+            'attachment_mime' => 'application/pdf',
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->post(route('messaging.templates.submit-meta', $template))
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(MetaTemplateStatus::Pending, $template->fresh()->meta_status);
+        $this->assertSame(['name', 'org'], $template->fresh()->variable_schema);
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/waba-1/message_templates') || $request->method() !== 'POST') {
+                return false;
+            }
+
+            $components = $request['components'] ?? [];
+            $header = collect($components)->firstWhere('type', 'HEADER');
+            $body = collect($components)->firstWhere('type', 'BODY');
+
+            return ($header['format'] ?? null) === 'DOCUMENT'
+                && ($header['example']['header_handle'][0] ?? null) === '4::document-handle'
+                && ! str_contains((string) ($body['text'] ?? ''), 'receipt')
+                && str_contains((string) ($body['text'] ?? ''), '{{1}}');
+        });
+    }
+
+    public function test_email_send_attaches_template_document_and_replaces_receipt(): void
+    {
+        Mail::fake();
+        Storage::fake('public');
+
+        $org = Organization::factory()->create(['name' => 'Hope Foundation']);
+        $volunteer = User::factory()->volunteer()->create();
+        $volunteer->organizations()->attach($org->id, ['is_active' => true]);
+
+        $donor = Donor::factory()->create([
+            'organization_id' => $org->id,
+            'full_name' => 'Anita Mehta',
+            'email' => 'anita@example.com',
+        ]);
+
+        DonorAssignment::create([
+            'organization_id' => $org->id,
+            'donor_id' => $donor->id,
+            'volunteer_id' => $volunteer->id,
+            'assigned_by' => $volunteer->id,
+            'is_active' => true,
+        ]);
+
+        $path = UploadedFile::fake()->create('receipt.pdf', 80, 'application/pdf')->store('message-templates', 'public');
+
+        $template = MessageTemplate::create([
+            'organization_id' => $org->id,
+            'name' => 'Thanks with receipt',
+            'channel' => MessageChannel::Email,
+            'subject' => 'Hi {{name}}',
+            'body' => 'Thanks from {{org}}. {{receipt}}',
+            'is_active' => true,
+            'header_format' => 'document',
+            'attachment_path' => $path,
+            'attachment_filename' => 'receipt.pdf',
+            'attachment_mime' => 'application/pdf',
+        ]);
+
+        $this->actingAs($volunteer);
+        OrganizationContext::set($org->id);
+
+        $this->post(route('donors.messages.send', $donor), [
+            'channel' => 'email',
+            'message_template_id' => $template->id,
+            'subject' => 'Hi {{name}}',
+            'body' => 'Thanks from {{org}}. {{receipt}}',
+        ])->assertRedirect();
+
+        Mail::assertSent(DonorOutreachMail::class, function (DonorOutreachMail $mail) {
+            $built = $mail->attachments();
+
+            return str_contains($mail->bodyText, 'Receipt attached.')
+                && count($built) === 1;
+        });
+
+        $email = OutboundMessage::query()->where('channel', 'email')->latest('id')->first();
+        $this->assertNotNull($email);
+        $this->assertStringContainsString('Receipt attached.', $email->body);
+    }
+
+    public function test_unknown_meta_status_on_submit_defaults_to_pending(): void
+    {
+        Http::fake([
+            'https://graph.facebook.com/v21.0/waba-1/message_templates*' => Http::response([
+                'id' => 'tmpl-x',
+                'status' => 'SOMETHING_NEW',
+            ], 200),
+        ]);
+
+        $org = Organization::factory()->create([
+            'feature_overrides' => ['whatsapp' => true],
+        ]);
+
+        PlatformMessagingSetting::current()->update([
+            'whatsapp_enabled' => true,
+            'meta_access_token' => 'platform-token',
+            'meta_phone_number_id' => 'phone-1',
+            'meta_waba_id' => 'waba-1',
+        ]);
+
+        OrganizationMessagingSetting::query()->create([
+            'organization_id' => $org->id,
+            'whatsapp_enabled' => true,
+            'whatsapp_use_platform' => true,
+        ]);
+
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        $template = MessageTemplate::create([
+            'organization_id' => $org->id,
+            'name' => 'Odd status',
+            'channel' => MessageChannel::WhatsApp,
+            'body' => 'Hello {{name}}',
+            'is_active' => true,
+            'meta_name' => 'odd_status',
+            'meta_language' => 'en',
+            'meta_category' => 'UTILITY',
+            'meta_status' => MetaTemplateStatus::Draft,
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->post(route('messaging.templates.submit-meta', $template))
+            ->assertRedirect();
+
+        $this->assertSame(MetaTemplateStatus::Pending, $template->fresh()->meta_status);
     }
 }

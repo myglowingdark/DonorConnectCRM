@@ -32,17 +32,21 @@ class MetaWhatsAppCredentialResolver
             ]);
         }
 
+        $platform = PlatformMessagingSetting::current();
+        $appId = config('services.meta.app_id') ?: $platform->meta_app_id;
+        $appSecret = config('services.meta.app_secret') ?: $platform->meta_app_secret;
+
         if (! $settings->whatsapp_use_platform && $this->orgCredentialsComplete($settings)) {
             return new MetaWhatsAppCredentials(
                 accessToken: (string) $settings->whatsapp_api_key,
                 phoneNumberId: (string) $settings->whatsapp_phone_number_id,
                 wabaId: (string) $settings->whatsapp_waba_id,
                 apiVersion: 'v21.0',
+                appId: $appId,
+                appSecret: $appSecret,
                 source: 'organization',
             );
         }
-
-        $platform = PlatformMessagingSetting::current();
 
         if ($platform->whatsapp_enabled && $this->platformCredentialsComplete($platform)) {
             return new MetaWhatsAppCredentials(
@@ -50,8 +54,8 @@ class MetaWhatsAppCredentialResolver
                 phoneNumberId: (string) $platform->meta_phone_number_id,
                 wabaId: (string) $platform->meta_waba_id,
                 apiVersion: $platform->meta_api_version ?: 'v21.0',
-                appId: $platform->meta_app_id,
-                appSecret: $platform->meta_app_secret,
+                appId: $appId,
+                appSecret: $appSecret,
                 source: 'platform',
             );
         }

@@ -8,7 +8,7 @@ use Illuminate\Validation\ValidationException;
 class MetaWhatsAppClient
 {
     /**
-     * @param  list<array{type: string, parameters: list<array{type: string, text: string}>}>  $components
+     * @param  list<array<string, mixed>>  $components
      * @return array{message_id: string|null, raw: array<string, mixed>}
      */
     public function sendTemplateMessage(
@@ -57,17 +57,117 @@ class MetaWhatsAppClient
     }
 
     /**
+     * Upload a sample media file via Meta Resumable Upload API and return the asset handle.
+     */
+    public function uploadResumableMedia(
+        MetaWhatsAppCredentials $credentials,
+        string $absolutePath,
+        string $mime,
+        string $filename,
+    ): string {
+        $appId = $credentials->appId ?: config('services.meta.app_id');
+
+        if (blank($appId)) {
+            throw ValidationException::withMessages([
+                'whatsapp' => 'Meta App ID is required to upload template document samples. Configure it in platform messaging settings.',
+            ]);
+        }
+
+        if (! is_readable($absolutePath)) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Template document file could not be read for Meta upload.',
+            ]);
+        }
+
+        $fileLength = filesize($absolutePath);
+        if ($fileLength === false || $fileLength < 1) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Template document file is empty or unreadable.',
+            ]);
+        }
+
+        $sessionResponse = Http::withToken($credentials->accessToken)
+            ->acceptJson()
+            ->post("{$credentials->graphBaseUrl()}/{$appId}/uploads", [
+                'file_length' => $fileLength,
+                'file_type' => $mime,
+                'file_name' => $filename,
+            ]);
+
+        if (! $sessionResponse->successful()) {
+            throw $this->toValidationException(
+                $sessionResponse->json(),
+                $sessionResponse->status(),
+                'Failed to start Meta media upload for template document.',
+            );
+        }
+
+        $uploadSessionId = $sessionResponse->json('id');
+        if (blank($uploadSessionId)) {
+            throw ValidationException::withMessages([
+                'whatsapp' => 'Meta did not return an upload session id for the template document.',
+            ]);
+        }
+
+        $binary = file_get_contents($absolutePath);
+        if ($binary === false) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Template document file could not be read for Meta upload.',
+            ]);
+        }
+
+        $uploadResponse = Http::withToken($credentials->accessToken)
+            ->withHeaders([
+                'file_offset' => '0',
+                'Content-Type' => $mime,
+            ])
+            ->withBody($binary, $mime)
+            ->post("{$credentials->graphBaseUrl()}/{$uploadSessionId}");
+
+        if (! $uploadResponse->successful()) {
+            throw $this->toValidationException(
+                $uploadResponse->json(),
+                $uploadResponse->status(),
+                'Failed to upload template document sample to Meta.',
+            );
+        }
+
+        $handle = $uploadResponse->json('h');
+        if (blank($handle)) {
+            throw ValidationException::withMessages([
+                'whatsapp' => 'Meta did not return a media handle for the template document.',
+            ]);
+        }
+
+        return (string) $handle;
+    }
+
+    /**
      * @param  array{
      *     name: string,
      *     language: string,
      *     category: string,
      *     body: string,
-     *     example_body?: list<string>|null
+     *     example_body?: list<string>|null,
+     *     header_format?: string|null,
+     *     header_handle?: string|null
      * }  $template
      * @return array{id: string|null, status: string|null, raw: array<string, mixed>}
      */
     public function createMessageTemplate(MetaWhatsAppCredentials $credentials, array $template): array
     {
+        $components = [];
+
+        if (($template['header_format'] ?? null) === 'document' && filled($template['header_handle'] ?? null)) {
+            $components[] = [
+                'type' => 'HEADER',
+                'format' => 'DOCUMENT',
+                'example' => [
+                    'header_handle' => [$template['header_handle']],
+                ],
+            ];
+        }
+
         $bodyComponent = [
             'type' => 'BODY',
             'text' => $template['body'],
@@ -79,11 +179,13 @@ class MetaWhatsAppClient
             ];
         }
 
+        $components[] = $bodyComponent;
+
         $payload = [
             'name' => $template['name'],
             'language' => $template['language'],
             'category' => strtoupper($template['category']),
-            'components' => [$bodyComponent],
+            'components' => $components,
         ];
 
         $response = Http::withToken($credentials->accessToken)

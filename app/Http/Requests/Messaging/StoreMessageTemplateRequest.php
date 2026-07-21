@@ -28,6 +28,8 @@ class StoreMessageTemplateRequest extends FormRequest
             'meta_status' => ['nullable', Rule::enum(MetaTemplateStatus::class)],
             'variable_schema' => ['nullable', 'array'],
             'variable_schema.*' => ['string', 'max:40'],
+            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx'],
+            'remove_attachment' => ['sometimes', 'boolean'],
         ];
     }
 }

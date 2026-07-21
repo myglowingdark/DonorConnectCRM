@@ -131,7 +131,7 @@ class MessageService
 
         try {
             $result = match ($channel) {
-                MessageChannel::Email => $this->dispatchEmail($settings, $organization, $message),
+                MessageChannel::Email => $this->dispatchEmail($settings, $organization, $message, $template),
                 MessageChannel::WhatsApp => $this->dispatchWhatsApp($organization, $settings, $message, $template, $replacements),
                 MessageChannel::Sms => $this->dispatchProviderMessage($settings, $message, 'sms'),
             };
@@ -195,12 +195,34 @@ class MessageService
         $exampleValues = $this->exampleValuesForTemplate($template, $organization);
 
         $credentials = $this->credentials->resolveForOrganization($organization);
+
+        $headerFormat = null;
+        $headerHandle = null;
+        if ($template->usesDocumentHeader()) {
+            $absolutePath = $template->absoluteAttachmentPath();
+            if (! $absolutePath || ! is_readable($absolutePath)) {
+                throw ValidationException::withMessages([
+                    'attachment' => 'WhatsApp templates with {{receipt}} (or a document header) require an uploaded sample PDF/DOC before submitting to Meta.',
+                ]);
+            }
+
+            $headerFormat = 'document';
+            $headerHandle = $this->metaClient->uploadResumableMedia(
+                $credentials,
+                $absolutePath,
+                $template->attachment_mime ?: 'application/pdf',
+                $template->attachment_filename ?: basename($absolutePath),
+            );
+        }
+
         $result = $this->metaClient->createMessageTemplate($credentials, [
             'name' => $metaName,
             'language' => $language,
             'category' => $category,
             'body' => $bodyForMeta,
             'example_body' => $exampleValues,
+            'header_format' => $headerFormat,
+            'header_handle' => $headerHandle,
         ]);
 
         $template->update([
@@ -208,9 +230,10 @@ class MessageService
             'meta_language' => $language,
             'meta_category' => strtoupper($category),
             'meta_template_id' => $result['id'],
-            'meta_status' => MetaTemplateStatus::fromMetaApi($result['status'] ?? 'PENDING'),
+            'meta_status' => MetaTemplateStatus::fromMetaApi($result['status'] ?? null, MetaTemplateStatus::Pending),
             'meta_rejection_reason' => null,
             'variable_schema' => $template->orderedVariableKeys(),
+            'header_format' => $headerFormat ?? ($template->header_format ?: 'none'),
         ]);
 
         $this->auditLogger->log(
@@ -365,6 +388,27 @@ class MessageService
         $credentials = $this->credentials->resolveForOrganization($organization, $settings);
 
         $components = [];
+
+        if ($template->usesDocumentHeader()) {
+            $documentUrl = $template->attachment_url;
+            if (! filled($documentUrl)) {
+                throw ValidationException::withMessages([
+                    'attachment' => 'This WhatsApp template requires a document attachment to send.',
+                ]);
+            }
+
+            $components[] = [
+                'type' => 'header',
+                'parameters' => [[
+                    'type' => 'document',
+                    'document' => [
+                        'link' => $documentUrl,
+                        'filename' => $template->attachment_filename ?: 'document.pdf',
+                    ],
+                ]],
+            ];
+        }
+
         $keys = $template->orderedVariableKeys();
         if ($keys !== []) {
             $parameters = [];
@@ -406,17 +450,28 @@ class MessageService
         OrganizationMessagingSetting $settings,
         Organization $organization,
         OutboundMessage $message,
+        ?MessageTemplate $template = null,
     ): array {
         $platform = PlatformMessagingSetting::current();
 
         $fromEmail = $settings->from_email ?: $platform->from_email;
         $fromName = $settings->from_name ?: ($platform->from_name ?: $organization->name);
 
+        $attachment = null;
+        if ($template?->has_attachment && $template->absoluteAttachmentPath()) {
+            $attachment = [
+                'path' => $template->absoluteAttachmentPath(),
+                'name' => $template->attachment_filename,
+                'mime' => $template->attachment_mime,
+            ];
+        }
+
         $mailable = new DonorOutreachMail(
             subjectLine: $message->subject ?: ('Message from '.$organization->name),
             bodyText: $message->body,
             fromEmail: $fromEmail,
             fromName: $fromName,
+            attachment: $attachment,
         );
 
         if ($settings->usesCustomSmtp()) {
@@ -524,6 +579,7 @@ class MessageService
             '{{volunteer}}' => $actor->name,
             '{{donation_link}}' => $donationLink,
             '{{tracking_link}}' => $donationLink,
+            '{{receipt}}' => 'Receipt attached.',
             '{{1}}' => $donor->full_name,
             '{{2}}' => $organization->name,
             '{{3}}' => $actor->name,
@@ -533,7 +589,15 @@ class MessageService
     protected function toMetaBodyText(MessageTemplate $template): string
     {
         $keys = $template->orderedVariableKeys();
-        $body = $template->body;
+        $body = (string) $template->body;
+
+        // Document placeholders are not Meta body variables — strip them for the BODY component.
+        foreach (MessageTemplate::DOCUMENT_VARIABLES as $docVar) {
+            $body = preg_replace('/\{\{\s*'.preg_quote($docVar, '/').'\s*\}\}/i', '', $body) ?? $body;
+        }
+        $body = preg_replace("/[ \t]+/", ' ', $body) ?? $body;
+        $body = preg_replace("/\n{3,}/", "\n\n", $body) ?? $body;
+        $body = trim($body);
 
         foreach ($keys as $index => $key) {
             if (ctype_digit((string) $key)) {

@@ -21,14 +21,20 @@ enum MetaTemplateStatus: string
         };
     }
 
-    public static function fromMetaApi(?string $status): self
+    public static function fromMetaApi(?string $status, self $default = self::Draft): self
     {
-        return match (strtoupper((string) $status)) {
+        $normalized = strtoupper(trim((string) $status));
+
+        if ($normalized === '') {
+            return $default;
+        }
+
+        return match ($normalized) {
             'APPROVED' => self::Approved,
             'PENDING', 'IN_APPEAL', 'PENDING_DELETION' => self::Pending,
             'REJECTED', 'DISABLED' => self::Rejected,
             'PAUSED' => self::Paused,
-            default => self::Draft,
+            default => $default,
         };
     }
 }
