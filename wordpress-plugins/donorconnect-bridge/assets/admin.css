@@ -1,25 +1,143 @@
+.dc-bridge-wrap {
+  max-width: 1100px;
+}
+
 .dc-bridge-wrap .dc-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin: 16px 0;
+  align-items: start;
 }
+
 .dc-bridge-wrap .dc-card {
   background: #fff;
   border: 1px solid #dcdcde;
   border-radius: 8px;
   padding: 16px 20px;
-  margin: 16px 0;
+  margin: 0;
+  min-width: 0; /* prevent grid blowout from long secrets / inputs */
+  overflow: hidden;
+  box-sizing: border-box;
 }
+
+.dc-bridge-wrap .dc-card > h2 {
+  margin-top: 0;
+  font-size: 1.15em;
+}
+
+.dc-bridge-wrap .dc-card > p {
+  color: #646970;
+  line-height: 1.45;
+}
+
+.dc-bridge-wrap .dc-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 12px 0 16px;
+}
+
+.dc-bridge-wrap .dc-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.dc-bridge-wrap .dc-field input[type="url"],
+.dc-bridge-wrap .dc-field input[type="text"],
+.dc-bridge-wrap .dc-field input[type="password"],
+.dc-bridge-wrap .dc-field input[type="number"],
+.dc-bridge-wrap .dc-field textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dc-bridge-wrap .dc-field .description {
+  margin: 6px 0 0;
+}
+
+.dc-bridge-wrap .dc-cred-list {
+  list-style: none;
+  margin: 12px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-bridge-wrap .dc-cred-list li {
+  margin: 0;
+  min-width: 0;
+}
+
+.dc-bridge-wrap .dc-cred-list .dc-cred-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #1d2327;
+}
+
+.dc-bridge-wrap .dc-cred-value {
+  display: block;
+  padding: 8px 10px;
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
 .dc-bridge-wrap .dc-secret {
   word-break: break-all;
+  overflow-wrap: anywhere;
   display: inline-block;
   max-width: 100%;
 }
+
+.dc-bridge-wrap .dc-status-list {
+  margin: 8px 0 0;
+  padding-left: 1.2em;
+  line-height: 1.7;
+}
+
+.dc-bridge-wrap .dc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
 .dc-bridge-wrap .dc-result {
   background: #f6f7f7;
   padding: 12px;
   border-radius: 6px;
   max-height: 240px;
   overflow: auto;
+}
+
+/* Full-width settings card below the grid */
+.dc-bridge-wrap > form.dc-card {
+  margin: 16px 0;
+}
+
+.dc-bridge-wrap .form-table th {
+  width: 200px;
+}
+
+.dc-bridge-wrap .form-table input.regular-text,
+.dc-bridge-wrap .form-table input.large-text,
+.dc-bridge-wrap .form-table textarea.large-text {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 782px) {
+  .dc-bridge-wrap .form-table th {
+    width: auto;
+  }
 }

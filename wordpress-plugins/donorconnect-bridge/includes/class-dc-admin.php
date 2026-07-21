@@ -209,22 +209,18 @@ class DC_Bridge_Admin {
 					<form method="post">
 						<?php wp_nonce_field( 'dc_bridge_save' ); ?>
 						<input type="hidden" name="dc_bridge_action" value="pair" />
-						<table class="form-table">
-							<tr>
-								<th><label for="pair_crm_url"><?php esc_html_e( 'CRM URL', 'donorconnect-bridge' ); ?></label></th>
-								<td>
-									<input type="url" class="regular-text" name="pair_crm_url" id="pair_crm_url" value="<?php echo esc_attr( (string) $settings['crm_base_url'] ); ?>" placeholder="https://donorconnect.example.com" required />
-									<p class="description"><?php esc_html_e( 'Your DonorConnect site URL (not the WordPress REST URL).', 'donorconnect-bridge' ); ?></p>
-								</td>
-							</tr>
-							<tr>
-								<th><label for="pairing_code"><?php esc_html_e( 'Pairing code', 'donorconnect-bridge' ); ?></label></th>
-								<td>
-									<input type="text" class="regular-text code" name="pairing_code" id="pairing_code" autocomplete="off" placeholder="dc_pair_…" required />
-								</td>
-							</tr>
-						</table>
-						<p>
+						<div class="dc-fields">
+							<div class="dc-field">
+								<label for="pair_crm_url"><?php esc_html_e( 'CRM URL', 'donorconnect-bridge' ); ?></label>
+								<input type="url" name="pair_crm_url" id="pair_crm_url" value="<?php echo esc_attr( (string) $settings['crm_base_url'] ); ?>" placeholder="https://donorconnect.example.com" required />
+								<p class="description"><?php esc_html_e( 'Your DonorConnect site URL (not the WordPress REST URL).', 'donorconnect-bridge' ); ?></p>
+							</div>
+							<div class="dc-field">
+								<label for="pairing_code"><?php esc_html_e( 'Pairing code', 'donorconnect-bridge' ); ?></label>
+								<input type="text" class="code" name="pairing_code" id="pairing_code" autocomplete="off" spellcheck="false" placeholder="dc_pair_…" required />
+							</div>
+						</div>
+						<p class="dc-actions">
 							<button type="submit" class="button button-primary"><?php esc_html_e( 'Pair with DonorConnect', 'donorconnect-bridge' ); ?></button>
 						</p>
 					</form>
@@ -233,40 +229,38 @@ class DC_Bridge_Admin {
 				<div class="dc-card">
 					<h2><?php esc_html_e( 'Secure link credentials', 'donorconnect-bridge' ); ?></h2>
 					<p><?php esc_html_e( 'Manual fallback: paste these into DonorConnect CRM → WordPress site if you are not using pairing.', 'donorconnect-bridge' ); ?></p>
-					<table class="form-table">
-						<tr>
-							<th><?php esc_html_e( 'Site ID', 'donorconnect-bridge' ); ?></th>
-							<td><code><?php echo esc_html( (string) $settings['site_id'] ); ?></code></td>
-						</tr>
-						<tr>
-							<th><?php esc_html_e( 'REST base URL', 'donorconnect-bridge' ); ?></th>
-							<td><code><?php echo esc_html( $endpoint ); ?></code></td>
-						</tr>
-						<tr>
-							<th><?php esc_html_e( 'API Key', 'donorconnect-bridge' ); ?></th>
-							<td>
-								<?php if ( ! empty( $settings['credentials_shown'] ) ) : ?>
-									<code class="dc-secret"><?php echo esc_html( (string) $settings['api_key'] ); ?></code>
-								<?php else : ?>
-									<code>••••••••••••••••</code>
-								<?php endif; ?>
-							</td>
-						</tr>
-						<tr>
-							<th><?php esc_html_e( 'HMAC Secret', 'donorconnect-bridge' ); ?></th>
-							<td>
-								<?php if ( ! empty( $settings['credentials_shown'] ) ) : ?>
-									<code class="dc-secret"><?php echo esc_html( (string) $settings['hmac_secret'] ); ?></code>
-								<?php else : ?>
-									<code>••••••••••••••••</code>
-								<?php endif; ?>
-							</td>
-						</tr>
-					</table>
+					<ul class="dc-cred-list">
+						<li>
+							<span class="dc-cred-label"><?php esc_html_e( 'Site ID', 'donorconnect-bridge' ); ?></span>
+							<code class="dc-cred-value"><?php echo esc_html( (string) $settings['site_id'] ); ?></code>
+						</li>
+						<li>
+							<span class="dc-cred-label"><?php esc_html_e( 'REST base URL', 'donorconnect-bridge' ); ?></span>
+							<code class="dc-cred-value"><?php echo esc_html( $endpoint ); ?></code>
+						</li>
+						<li>
+							<span class="dc-cred-label"><?php esc_html_e( 'API Key', 'donorconnect-bridge' ); ?></span>
+							<?php if ( ! empty( $settings['credentials_shown'] ) ) : ?>
+								<code class="dc-cred-value dc-secret"><?php echo esc_html( (string) $settings['api_key'] ); ?></code>
+							<?php else : ?>
+								<code class="dc-cred-value">••••••••••••••••</code>
+							<?php endif; ?>
+						</li>
+						<li>
+							<span class="dc-cred-label"><?php esc_html_e( 'HMAC Secret', 'donorconnect-bridge' ); ?></span>
+							<?php if ( ! empty( $settings['credentials_shown'] ) ) : ?>
+								<code class="dc-cred-value dc-secret"><?php echo esc_html( (string) $settings['hmac_secret'] ); ?></code>
+							<?php else : ?>
+								<code class="dc-cred-value">••••••••••••••••</code>
+							<?php endif; ?>
+						</li>
+					</ul>
 					<form method="post">
 						<?php wp_nonce_field( 'dc_bridge_save' ); ?>
-						<button class="button" name="dc_bridge_action" value="reveal" type="submit"><?php esc_html_e( 'Reveal secrets', 'donorconnect-bridge' ); ?></button>
-						<button class="button button-secondary" name="dc_bridge_action" value="rotate_secrets" type="submit" onclick="return confirm('Rotate secrets? CRM sync will break until credentials are updated.');"><?php esc_html_e( 'Rotate secrets', 'donorconnect-bridge' ); ?></button>
+						<p class="dc-actions">
+							<button class="button" name="dc_bridge_action" value="reveal" type="submit"><?php esc_html_e( 'Reveal secrets', 'donorconnect-bridge' ); ?></button>
+							<button class="button button-secondary" name="dc_bridge_action" value="rotate_secrets" type="submit" onclick="return confirm('Rotate secrets? CRM sync will break until credentials are updated.');"><?php esc_html_e( 'Rotate secrets', 'donorconnect-bridge' ); ?></button>
+						</p>
 					</form>
 					<p class="description">
 						<?php esc_html_e( 'CRM auth type: HMAC (DonorConnect Bridge). Endpoints path: /donors. Header API key uses X-DC-API-Key; requests must also send signed HMAC headers.', 'donorconnect-bridge' ); ?>
@@ -275,7 +269,7 @@ class DC_Bridge_Admin {
 
 				<div class="dc-card">
 					<h2><?php esc_html_e( 'Source status', 'donorconnect-bridge' ); ?></h2>
-					<ul>
+					<ul class="dc-status-list">
 						<li>NGOBuddy: <?php echo $health['ngobuddy_active'] ? '✅' : '⚠️ not detected'; ?></li>
 						<li>Donors table: <?php echo $health['donors_table'] ? '✅' : '❌'; ?></li>
 						<li>Donations / Razorpay table: <?php echo $health['donations_table'] ? '✅' : '❌'; ?></li>
