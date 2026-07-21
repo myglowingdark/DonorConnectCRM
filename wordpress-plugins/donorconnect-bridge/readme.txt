@@ -37,8 +37,9 @@ Base: `https://{partner-site}/wp-json/donorconnect/v1`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/health` | Connectivity + NGOBuddy table status |
+| GET | `/health` | Connectivity + NGOBuddy table status (+ donation_url / projects_count) |
 | GET | `/donors?page=&per_page=` | Donors with nested Razorpay donations (CRM sync format) |
+| GET | `/projects` | Published NGOBuddy `project` CPT posts + general donation URL |
 
 ## CRM configuration
 

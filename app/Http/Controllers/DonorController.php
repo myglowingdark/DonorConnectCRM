@@ -251,7 +251,7 @@ class DonorController extends Controller
             || $donor->activeAssignment?->volunteer_id === $request->user()->id;
 
         $messagingSettings = app(MessageService::class)->settingsFor($donor->organization_id);
-        $organization = Organization::query()->findOrFail($donor->organization_id);
+        $organization = Organization::query()->with('apiConnection')->findOrFail($donor->organization_id);
         $hasWhatsApp = app(EntitlementService::class)->hasFeature($organization, 'whatsapp');
 
         $enabledChannels = collect(MessageChannel::cases())
@@ -307,6 +307,9 @@ class DonorController extends Controller
             })
             ->values();
 
+        $donationTargets = app(\App\Services\WordPress\WordPressDonorSyncService::class)
+            ->fetchDonationTargets($organization->apiConnection);
+
         return Inertia::render('Donors/Show', [
             'donor' => $donor,
             'timeline' => $this->buildTimeline($donor),
@@ -324,6 +327,7 @@ class DonorController extends Controller
             'messageTemplates' => $messageTemplates,
             'hasWhatsAppFeature' => $hasWhatsApp,
             'trackingLinks' => $trackingLinks,
+            'donationTargets' => $donationTargets,
             'attributionWindowDays' => (int) ($organization->attribution_window_days ?: 3),
         ]);
     }

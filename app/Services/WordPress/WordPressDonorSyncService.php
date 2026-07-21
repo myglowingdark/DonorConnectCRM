@@ -10,6 +10,7 @@ use App\Models\Organization;
 use App\Models\OrganizationApiConnection;
 use App\Models\SyncRun;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -690,5 +691,103 @@ class WordPressDonorSyncService
         }
 
         return ['ok' => true, ...(array) $response->json()];
+    }
+
+    /**
+     * NGOBuddy projects + general donation URL for the tracking-link picker.
+     *
+     * @return list<array{key:string,label:string,url:string,type:string,project_id?:int|null}>
+     */
+    public function fetchDonationTargets(?OrganizationApiConnection $connection, bool $fresh = false): array
+    {
+        if (! $connection || ! $connection->is_active || $connection->base_url === '' || str_starts_with($connection->base_url, 'push://')) {
+            return [];
+        }
+
+        $cacheKey = 'bridge.donation_targets.'.$connection->id;
+
+        if ($fresh) {
+            Cache::forget($cacheKey);
+        }
+
+        /** @var list<array{key:string,label:string,url:string,type:string,project_id?:int|null}> $targets */
+        $targets = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($connection) {
+            return $this->pullDonationTargets($connection);
+        });
+
+        return $targets;
+    }
+
+    /**
+     * @return list<array{key:string,label:string,url:string,type:string,project_id?:int|null}>
+     */
+    protected function pullDonationTargets(OrganizationApiConnection $connection): array
+    {
+        $url = rtrim($connection->base_url, '/').'/projects';
+
+        try {
+            $response = $this->signedRequest($connection, 'GET', $url);
+        } catch (Throwable $e) {
+            Log::warning('Bridge projects fetch failed', [
+                'connection_id' => $connection->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $data = $response->json();
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $targets = [];
+
+        $generalUrl = trim((string) ($data['general_donation_url'] ?? ''));
+        if ($generalUrl !== '' && preg_match('#^https?://#i', $generalUrl)) {
+            $targets[] = [
+                'key' => 'general',
+                'label' => (string) ($data['general_donation_label'] ?? 'General donation (NGOBuddy)'),
+                'url' => $generalUrl,
+                'type' => 'general',
+                'project_id' => null,
+            ];
+        }
+
+        $projects = $data['projects'] ?? [];
+        if (! is_array($projects)) {
+            return $targets;
+        }
+
+        foreach ($projects as $project) {
+            if (! is_array($project)) {
+                continue;
+            }
+
+            $projectUrl = trim((string) ($project['url'] ?? ''));
+            if ($projectUrl === '' || ! preg_match('#^https?://#i', $projectUrl)) {
+                continue;
+            }
+
+            $id = (int) ($project['id'] ?? 0);
+            $title = trim((string) ($project['title'] ?? ''));
+            if ($title === '') {
+                $title = $id > 0 ? 'Project #'.$id : 'Project';
+            }
+
+            $targets[] = [
+                'key' => $id > 0 ? 'project-'.$id : 'project-'.md5($projectUrl),
+                'label' => $title,
+                'url' => $projectUrl,
+                'type' => 'project',
+                'project_id' => $id > 0 ? $id : null,
+            ];
+        }
+
+        return $targets;
     }
 }

@@ -17,6 +17,7 @@ export default function DonorShow({
     messageTemplates = [],
     hasWhatsAppFeature = false,
     trackingLinks = [],
+    donationTargets = [],
     attributionWindowDays = 3,
 }) {
     const { auth, features = [], flash } = usePage().props;
@@ -24,6 +25,26 @@ export default function DonorShow({
     const paymentLinkForm = useForm({ amount: '', via: 'auto' });
     const [showTransfer, setShowTransfer] = useState(false);
     const [copiedLink, setCopiedLink] = useState('');
+
+    const resolveInitialTarget = () => {
+        const priorUrl = trackingLinks[0]?.target_url || '';
+        if (priorUrl && donationTargets.length) {
+            const match = donationTargets.find((t) => t.url === priorUrl);
+            if (match) {
+                return { key: match.key, url: match.url };
+            }
+            return { key: 'custom', url: priorUrl };
+        }
+        if (donationTargets.length) {
+            const preferred =
+                donationTargets.find((t) => t.type === 'general') || donationTargets[0];
+            return { key: preferred.key, url: preferred.url };
+        }
+        return { key: 'custom', url: priorUrl };
+    };
+
+    const initialTarget = resolveInitialTarget();
+    const [targetKey, setTargetKey] = useState(initialTarget.key);
     const { data, setData, post, processing, errors, reset, transform } = useForm({
         outcome: 'interested',
         notes: '',
@@ -48,12 +69,23 @@ export default function DonorShow({
     });
 
     const trackingForm = useForm({
-        target_url: trackingLinks[0]?.target_url || '',
+        target_url: initialTarget.url,
         channel: 'copy',
         subject: 'A cause you may want to support',
         body: 'Please consider supporting this cause: {{donation_link}}',
         message_template_id: '',
     });
+
+    const selectDonationTarget = (key) => {
+        setTargetKey(key);
+        if (key === 'custom') {
+            return;
+        }
+        const target = donationTargets.find((t) => t.key === key);
+        if (target) {
+            trackingForm.setData('target_url', target.url);
+        }
+    };
 
     const applyTemplate = (templateId) => {
         const template = messageTemplates.find((t) => String(t.id) === String(templateId));
@@ -380,16 +412,52 @@ export default function DonorShow({
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                         <h3 className="mb-1 font-semibold">Donation tracking link</h3>
                         <p className="mb-4 text-xs text-on-surface-variant">
-                            Send an NGOBuddy project URL. Opens and payments within {attributionWindowDays} days
-                            after the last open are credited to you. Resend reuses the same link.
+                            Pick an NGOBuddy project or general donation page. Opens and payments within{' '}
+                            {attributionWindowDays} days after the last open are credited to you. Resend reuses
+                            the same link.
                         </p>
                         <div className="space-y-3">
-                            <input
-                                className="w-full rounded-xl border-slate-200"
-                                placeholder="https://hfsfoundation.org/project/blood-donation-camp/"
-                                value={trackingForm.data.target_url}
-                                onChange={(e) => trackingForm.setData('target_url', e.target.value)}
-                            />
+                            {donationTargets.length > 0 ? (
+                                <>
+                                    <select
+                                        className="w-full rounded-xl border-slate-200"
+                                        value={targetKey}
+                                        onChange={(e) => selectDonationTarget(e.target.value)}
+                                    >
+                                        {donationTargets.map((target) => (
+                                            <option key={target.key} value={target.key}>
+                                                {target.type === 'general' ? target.label : `Project: ${target.label}`}
+                                            </option>
+                                        ))}
+                                        <option value="custom">Custom URL…</option>
+                                    </select>
+                                    {targetKey === 'custom' ? (
+                                        <input
+                                            className="w-full rounded-xl border-slate-200"
+                                            placeholder="https://example.org/donate/"
+                                            value={trackingForm.data.target_url}
+                                            onChange={(e) => trackingForm.setData('target_url', e.target.value)}
+                                        />
+                                    ) : (
+                                        <p className="break-all text-xs text-on-surface-variant">
+                                            {trackingForm.data.target_url}
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <input
+                                        className="w-full rounded-xl border-slate-200"
+                                        placeholder="https://hfsfoundation.org/project/blood-donation-camp/"
+                                        value={trackingForm.data.target_url}
+                                        onChange={(e) => trackingForm.setData('target_url', e.target.value)}
+                                    />
+                                    <p className="text-xs text-on-surface-variant">
+                                        Connect the WordPress Bridge (with NGOBuddy projects) to auto-fill
+                                        donation targets.
+                                    </p>
+                                </>
+                            )}
                             {trackingForm.data.channel !== 'whatsapp' && (
                                 <textarea
                                     className="w-full rounded-xl border-slate-200"

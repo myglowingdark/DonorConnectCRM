@@ -5,12 +5,13 @@ Partner NGOs install the **DonorConnect Bridge** plugin next to **NGOBuddy**. Ea
 ## Architecture
 
 ```
-NGOBuddy (donors + Razorpay donations)
+NGOBuddy (donors + Razorpay donations + projects CPT)
         │
         ▼
 DonorConnect Bridge (WP plugin)   ← per org site
-  GET /wp-json/donorconnect/v1/donors   ←── HMAC-signed pull ── DonorConnect CRM (that org)
-  POST /api/v1/ingest/donors            ── optional push ────►
+  GET /wp-json/donorconnect/v1/donors     ←── HMAC-signed pull ── DonorConnect CRM (that org)
+  GET /wp-json/donorconnect/v1/projects   ←── project + general donate URLs (tracking picker)
+  POST /api/v1/ingest/donors              ── optional push ────►
 ```
 
 ## Who can connect
@@ -37,6 +38,15 @@ Team Lead / Finance / Volunteers cannot manage Bridge credentials.
    - Preferred: CRM creates the link with synced keys
    - Fallback: CRM asks WordPress Bridge to create the link on the partner site using NGOBuddy keys
 3. Optional live ledger: Bridge `GET /razorpay/payments`.
+
+## Donation tracking link picker
+
+Donor Show → **Donation tracking link** loads targets from Bridge `GET /projects`:
+
+1. **General donation (NGOBuddy)** — theme `gdnb_theme_settings.donation_url`, else `/donate` page, else site home
+2. **Published projects** — NGOBuddy `project` CPT permalinks (or custom `_gdnb_donation_url` when mode is custom/external)
+
+CRM caches the list for 10 minutes per org connection. Without a Bridge connection, volunteers can still paste a custom URL.
 
 ## Setup
 

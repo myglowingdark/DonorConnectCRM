@@ -42,6 +42,16 @@ class DC_Bridge_REST_API {
 
 		register_rest_route(
 			'donorconnect/v1',
+			'/projects',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'projects' ),
+				'permission_callback' => array( $this, 'permission' ),
+			)
+		);
+
+		register_rest_route(
+			'donorconnect/v1',
 			'/razorpay/status',
 			array(
 				'methods'             => 'GET',
@@ -114,6 +124,25 @@ class DC_Bridge_REST_API {
 					'page'     => $payload['page'],
 					'per_page' => $payload['per_page'],
 					'site_id'  => DC_Bridge_Plugin::settings()['site_id'],
+				),
+			),
+			200
+		);
+	}
+
+	public function projects( WP_REST_Request $request ): WP_REST_Response {
+		$payload = DC_Bridge_Source::fetch_donation_targets();
+
+		return new WP_REST_Response(
+			array(
+				'ok'                     => true,
+				'site_url'               => $payload['site_url'],
+				'general_donation_url'   => $payload['general_donation_url'],
+				'general_donation_label' => $payload['general_donation_label'],
+				'projects'               => $payload['projects'],
+				'meta'                   => array(
+					'site_id'        => DC_Bridge_Plugin::settings()['site_id'],
+					'projects_count' => count( $payload['projects'] ),
 				),
 			),
 			200

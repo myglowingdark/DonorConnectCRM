@@ -343,6 +343,7 @@ class DC_Bridge_Source {
 	/** @return array<string,mixed> */
 	public static function health(): array {
 		$settings = DC_Bridge_Plugin::settings();
+		$targets  = self::fetch_donation_targets();
 
 		return array(
 			'ok'              => true,
@@ -350,6 +351,8 @@ class DC_Bridge_Source {
 			'version'         => DC_BRIDGE_VERSION,
 			'site_id'         => $settings['site_id'],
 			'site_url'        => home_url( '/' ),
+			'donation_url'    => $targets['general_donation_url'] ?? null,
+			'projects_count'  => isset( $targets['projects'] ) ? count( $targets['projects'] ) : 0,
 			'ngobuddy_active' => self::ngobuddy_active(),
 			'donors_table'    => self::table_exists( self::donors_table() ),
 			'donations_table' => self::table_exists( self::donations_table() ),
@@ -357,5 +360,106 @@ class DC_Bridge_Source {
 			'require_hmac'    => (bool) $settings['require_hmac'],
 			'time'            => gmdate( 'c' ),
 		);
+	}
+
+	/**
+	 * NGOBuddy projects + general donate URL for CRM tracking-link picker.
+	 *
+	 * @return array{
+	 *     ok: bool,
+	 *     site_url: string,
+	 *     general_donation_url: string|null,
+	 *     general_donation_label: string,
+	 *     projects: list<array{id:int,title:string,url:string,slug:string}>
+	 * }
+	 */
+	public static function fetch_donation_targets(): array {
+		$site_url = home_url( '/' );
+		$general  = self::resolve_general_donation_url();
+
+		$projects = array();
+		if ( post_type_exists( 'project' ) ) {
+			$posts = get_posts(
+				array(
+					'post_type'              => 'project',
+					'post_status'            => 'publish',
+					'numberposts'            => 200,
+					'orderby'                => 'title',
+					'order'                  => 'ASC',
+					'no_found_rows'          => true,
+					'update_post_meta_cache' => true,
+					'update_post_term_cache' => false,
+				)
+			);
+
+			foreach ( $posts as $post ) {
+				$url = self::resolve_project_donation_url( $post );
+				if ( $url === '' ) {
+					continue;
+				}
+
+				$projects[] = array(
+					'id'    => (int) $post->ID,
+					'title' => html_entity_decode( get_the_title( $post ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
+					'url'   => $url,
+					'slug'  => (string) $post->post_name,
+				);
+			}
+		}
+
+		return array(
+			'ok'                     => true,
+			'site_url'               => $site_url,
+			'general_donation_url'   => $general,
+			'general_donation_label' => 'General donation (NGOBuddy)',
+			'projects'               => $projects,
+		);
+	}
+
+	/** Theme donate URL, or site home as last-resort general target. */
+	private static function resolve_general_donation_url(): ?string {
+		$theme = get_option( 'gdnb_theme_settings', array() );
+		if ( is_array( $theme ) ) {
+			$candidate = trim( (string) ( $theme['donation_url'] ?? '' ) );
+			if ( $candidate !== '' && self::is_http_url( $candidate ) ) {
+				return esc_url_raw( $candidate );
+			}
+		}
+
+		$settings = get_option( 'gdnb_donations_settings', array() );
+		if ( is_array( $settings ) ) {
+			foreach ( array( 'donation_url', 'donate_page_url', 'thankyou_page_url' ) as $key ) {
+				$candidate = trim( (string) ( $settings[ $key ] ?? '' ) );
+				if ( $candidate !== '' && self::is_http_url( $candidate ) && $key !== 'thankyou_page_url' ) {
+					return esc_url_raw( $candidate );
+				}
+			}
+		}
+
+		$donate_page = get_page_by_path( 'donate' );
+		if ( $donate_page instanceof WP_Post ) {
+			return esc_url_raw( get_permalink( $donate_page ) );
+		}
+
+		$home = home_url( '/' );
+
+		return $home !== '' ? esc_url_raw( $home ) : null;
+	}
+
+	private static function resolve_project_donation_url( WP_Post $post ): string {
+		$custom = trim( (string) get_post_meta( $post->ID, '_gdnb_donation_url', true ) );
+		$mode   = strtolower( trim( (string) get_post_meta( $post->ID, '_gdnb_donation_url_mode', true ) ) );
+
+		if ( $custom !== '' && self::is_http_url( $custom ) && in_array( $mode, array( 'custom', 'external', 'url', 'redirect' ), true ) ) {
+			return esc_url_raw( $custom );
+		}
+
+		$permalink = get_permalink( $post );
+
+		return is_string( $permalink ) ? esc_url_raw( $permalink ) : '';
+	}
+
+	private static function is_http_url( string $url ): bool {
+		return (bool) preg_match( '#^https?://#i', $url );
 	}
 }
