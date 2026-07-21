@@ -1,1 +1,0 @@
-import{t as e}from"./app-BxCqgqif.js";var t=e();function n({children:e}){return(0,t.jsx)(`div`,{className:`min-h-screen bg-background`,children:e})}export{n as t};
