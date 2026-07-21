@@ -37,4 +37,19 @@ class Campaign extends Model
     {
         return $this->hasMany(Donation::class);
     }
+
+    public function donors(): HasMany
+    {
+        return $this->hasMany(Donor::class);
+    }
+
+    public function interactions(): HasMany
+    {
+        return $this->hasMany(DonorInteraction::class);
+    }
+
+    public function importBatches(): HasMany
+    {
+        return $this->hasMany(DonorImportBatch::class);
+    }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiConnectionController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\AttributionController;
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\CommissionCycleController;
 use App\Http\Controllers\DashboardController;
@@ -63,6 +64,19 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/imports/template', [DonorImportController::class, 'template'])
             ->middleware('role:super_admin,organization_admin')
             ->name('imports.template');
+        Route::get('/imports/{import}', [DonorImportController::class, 'show'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('imports.show');
+
+        Route::get('/campaigns', [CampaignController::class, 'index'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('campaigns.index');
+        Route::post('/campaigns', [CampaignController::class, 'store'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('campaigns.store');
+        Route::get('/campaigns/{campaign}', [CampaignController::class, 'show'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('campaigns.show');
 
         Route::get('/handovers', [HandoverController::class, 'index'])
             ->middleware('role:super_admin,organization_admin')

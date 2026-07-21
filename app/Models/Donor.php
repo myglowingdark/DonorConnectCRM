@@ -17,6 +17,8 @@ class Donor extends Model
 
     protected $fillable = [
         'organization_id',
+        'campaign_id',
+        'import_batch_id',
         'external_donor_id',
         'full_name',
         'email',
@@ -72,6 +74,16 @@ class Donor extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(DonorImportBatch::class, 'import_batch_id');
     }
 
     public function donations(): HasMany

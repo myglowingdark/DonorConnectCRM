@@ -53,6 +53,7 @@ const adminNav = [
         icon: 'analytics',
         children: [
             { href: 'reports.index', label: 'Reports', icon: 'analytics' },
+            { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
             { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
         ],
     },
@@ -103,6 +104,7 @@ const superAdminNav = [
         icon: 'analytics',
         children: [
             { href: 'reports.index', label: 'Reports', icon: 'analytics' },
+            { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
             { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
         ],
     },

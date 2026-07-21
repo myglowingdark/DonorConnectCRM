@@ -124,7 +124,10 @@ class DonorController extends Controller
 
         if ($request->filled('campaign_id')) {
             $campaignId = (int) $request->input('campaign_id');
-            $query->whereHas('donations', fn ($q) => $q->where('campaign_id', $campaignId));
+            $query->where(function ($q) use ($campaignId) {
+                $q->where('campaign_id', $campaignId)
+                    ->orWhereHas('donations', fn ($d) => $d->where('campaign_id', $campaignId));
+            });
         }
 
         if ($request->filled('tag')) {

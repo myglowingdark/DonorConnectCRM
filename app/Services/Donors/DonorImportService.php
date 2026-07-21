@@ -3,6 +3,7 @@
 namespace App\Services\Donors;
 
 use App\Enums\DonorStatus;
+use App\Models\Campaign;
 use App\Models\Donor;
 use App\Models\DonorImportBatch;
 use App\Models\Organization;
@@ -21,7 +22,10 @@ class DonorImportService
      * @param  array{
      *     volunteer_ids?: array<int>,
      *     cap_per_volunteer?: int|null,
-     *     assign_after_import?: bool
+     *     assign_after_import?: bool,
+     *     tags?: array<int, string>|string|null,
+     *     campaign_id?: int|null,
+     *     new_campaign_name?: string|null
      * }  $options
      */
     public function import(
@@ -34,13 +38,14 @@ class DonorImportService
 
         if ($rows->isEmpty()) {
             throw ValidationException::withMessages([
-                'file' => 'No donor rows found. Use the template headers: full_name, phone, email, city, state, preferred_language.',
+                'file' => 'No donor rows found. Use the template headers: full_name, phone, email, city, state, preferred_language, tags.',
             ]);
         }
 
         $volunteerIds = array_values(array_unique(array_map('intval', $options['volunteer_ids'] ?? [])));
         $cap = isset($options['cap_per_volunteer']) ? (int) $options['cap_per_volunteer'] : null;
         $assign = (bool) ($options['assign_after_import'] ?? false);
+        $batchTags = $this->normalizeTags($options['tags'] ?? []);
 
         if ($assign && empty($volunteerIds)) {
             throw ValidationException::withMessages([
@@ -55,6 +60,7 @@ class DonorImportService
         }
 
         $organization = Organization::query()->findOrFail($organizationId);
+        $campaignId = $this->resolveCampaignId($organizationId, $options);
 
         $created = 0;
         $updated = 0;
@@ -67,6 +73,8 @@ class DonorImportService
             $organization,
             $organizationId,
             $rows,
+            $batchTags,
+            $campaignId,
             &$created,
             &$updated,
             &$skipped,
@@ -116,14 +124,7 @@ class DonorImportService
                 }
 
                 $rawTags = trim((string) ($row['tags'] ?? $row['tag'] ?? ''));
-                $rowTags = $rawTags !== ''
-                    ? collect(preg_split('/[|,;]+/', $rawTags) ?: [])
-                        ->map(fn ($t) => strtolower(trim($t)))
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all()
-                    : [];
+                $rowTags = $rawTags !== '' ? $this->normalizeTags($rawTags) : [];
 
                 $payload = [
                     'full_name' => $name,
@@ -134,9 +135,14 @@ class DonorImportService
                     'preferred_language' => $language ?: $existing?->preferred_language,
                 ];
 
+                if ($campaignId) {
+                    $payload['campaign_id'] = $campaignId;
+                }
+
                 if ($existing) {
                     $tags = collect($existing->tags ?? [])
                         ->merge(['imported'])
+                        ->merge($batchTags)
                         ->merge($rowTags)
                         ->unique()
                         ->values()
@@ -159,7 +165,7 @@ class DonorImportService
                         'do_not_call' => false,
                         'country' => 'India',
                         'total_donated' => 0,
-                        'tags' => array_values(array_unique(array_merge(['imported'], $rowTags))),
+                        'tags' => array_values(array_unique(array_merge(['imported'], $batchTags, $rowTags))),
                         ...$payload,
                     ]);
                     $importedDonorIds[] = $donor->id;
@@ -178,9 +184,10 @@ class DonorImportService
             );
         }
 
-        return DonorImportBatch::create([
+        $batch = DonorImportBatch::create([
             'organization_id' => $organizationId,
             'uploaded_by' => $actor->id,
+            'campaign_id' => $campaignId,
             'original_filename' => $file->getClientOriginalName(),
             'rows_total' => $rows->count(),
             'rows_created' => $created,
@@ -190,7 +197,75 @@ class DonorImportService
             'cap_per_volunteer' => $cap,
             'volunteer_ids' => $volunteerIds ?: null,
             'errors' => $errors ?: null,
+            'donor_ids' => $importedDonorIds ?: null,
+            'tags' => $batchTags ?: null,
         ]);
+
+        if ($importedDonorIds) {
+            Donor::query()
+                ->whereIn('id', $importedDonorIds)
+                ->update(['import_batch_id' => $batch->id]);
+        }
+
+        return $batch;
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    protected function resolveCampaignId(int $organizationId, array $options): ?int
+    {
+        $newName = trim((string) ($options['new_campaign_name'] ?? ''));
+        if ($newName !== '') {
+            $campaign = Campaign::query()->create([
+                'organization_id' => $organizationId,
+                'name' => $newName,
+                'status' => 'active',
+                'starts_at' => now()->toDateString(),
+            ]);
+
+            return $campaign->id;
+        }
+
+        $campaignId = isset($options['campaign_id']) ? (int) $options['campaign_id'] : 0;
+        if ($campaignId < 1) {
+            return null;
+        }
+
+        $exists = Campaign::query()
+            ->where('organization_id', $organizationId)
+            ->whereKey($campaignId)
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'campaign_id' => 'Selected campaign was not found for this organization.',
+            ]);
+        }
+
+        return $campaignId;
+    }
+
+    /**
+     * @param  array<int, string>|string|null  $tags
+     * @return list<string>
+     */
+    protected function normalizeTags(array|string|null $tags): array
+    {
+        if ($tags === null || $tags === '' || $tags === []) {
+            return [];
+        }
+
+        $parts = is_array($tags)
+            ? $tags
+            : (preg_split('/[|,;]+/', (string) $tags) ?: []);
+
+        return collect($parts)
+            ->map(fn ($t) => strtolower(trim((string) $t)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -201,11 +276,32 @@ class DonorImportService
         $extension = strtolower($file->getClientOriginalExtension() ?: '');
         $path = $file->getRealPath();
 
-        if (in_array($extension, ['xlsx', 'xlsm'], true)) {
+        // Some servers report xlsx as zip / octet-stream — sniff by ZIP contents.
+        if (! in_array($extension, ['xlsx', 'xlsm', 'csv', 'txt'], true)) {
+            if ($this->looksLikeXlsx($path)) {
+                $extension = 'xlsx';
+            } else {
+                $extension = 'csv';
+            }
+        }
+
+        if (in_array($extension, ['xlsx', 'xlsm'], true) || $this->looksLikeXlsx($path)) {
             return collect($this->parseXlsx($path));
         }
 
         return collect($this->parseCsv($path));
+    }
+
+    protected function looksLikeXlsx(string $path): bool
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($path) !== true) {
+            return false;
+        }
+        $ok = $zip->locateName('xl/workbook.xml') !== false;
+        $zip->close();
+
+        return $ok;
     }
 
     /**
@@ -223,6 +319,10 @@ class DonorImportService
 
         while (($data = fgetcsv($handle)) !== false) {
             if ($header === null) {
+                // Strip UTF-8 BOM from first header cell.
+                if (isset($data[0])) {
+                    $data[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $data[0]) ?? (string) $data[0];
+                }
                 $header = array_map(fn ($h) => Str::snake(trim((string) $h)), $data);
                 continue;
             }
@@ -264,16 +364,25 @@ class DonorImportService
             $sx = simplexml_load_string($sharedXml);
             if ($sx) {
                 foreach ($sx->si as $si) {
-                    $shared[] = trim((string) ($si->t ?? $si->r->t ?? ''));
+                    if (isset($si->t)) {
+                        $shared[] = trim((string) $si->t);
+                    } else {
+                        $text = '';
+                        foreach ($si->r as $run) {
+                            $text .= (string) ($run->t ?? '');
+                        }
+                        $shared[] = trim($text);
+                    }
                 }
             }
         }
 
-        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $sheetPath = $this->resolveFirstSheetPath($zip);
+        $sheetXml = $sheetPath ? $zip->getFromName($sheetPath) : false;
         $zip->close();
 
         if (! $sheetXml) {
-            throw ValidationException::withMessages(['file' => 'Excel sheet1.xml not found.']);
+            throw ValidationException::withMessages(['file' => 'Excel worksheet not found. Export sheet 1 as .xlsx or use the CSV template.']);
         }
 
         $sheet = simplexml_load_string($sheetXml);
@@ -292,6 +401,8 @@ class DonorImportService
                 $value = (string) ($cell->v ?? '');
                 if ($type === 's') {
                     $value = $shared[(int) $value] ?? '';
+                } elseif ($type === 'inlineStr') {
+                    $value = (string) ($cell->is->t ?? '');
                 }
                 $matrix[$rIndex][$col] = trim($value);
             }
@@ -331,6 +442,54 @@ class DonorImportService
         return $rows;
     }
 
+    protected function resolveFirstSheetPath(\ZipArchive $zip): ?string
+    {
+        $candidates = ['xl/worksheets/sheet1.xml', 'xl/worksheets/sheet.xml'];
+        foreach ($candidates as $path) {
+            if ($zip->locateName($path) !== false) {
+                return $path;
+            }
+        }
+
+        $workbook = $zip->getFromName('xl/workbook.xml');
+        $rels = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if (! $workbook || ! $rels) {
+            return null;
+        }
+
+        $wb = simplexml_load_string($workbook);
+        $rx = simplexml_load_string($rels);
+        if (! $wb || ! $rx) {
+            return null;
+        }
+
+        $wb->registerXPathNamespace('m', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $wb->registerXPathNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+        $sheets = $wb->xpath('//m:sheets/m:sheet') ?: [];
+        if ($sheets === []) {
+            return null;
+        }
+
+        $rid = (string) ($sheets[0]->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'] ?? '');
+        if ($rid === '') {
+            return null;
+        }
+
+        $rx->registerXPathNamespace('pr', 'http://schemas.openxmlformats.org/package/2006/relationships');
+        foreach ($rx->Relationship ?? [] as $rel) {
+            if ((string) $rel['Id'] === $rid) {
+                $target = ltrim((string) $rel['Target'], '/');
+                if (! str_starts_with($target, 'xl/')) {
+                    $target = 'xl/'.ltrim($target, '/');
+                }
+
+                return $target;
+            }
+        }
+
+        return null;
+    }
+
     protected function columnIndex(string $letters): int
     {
         $letters = strtoupper($letters);
@@ -349,7 +508,6 @@ class DonorImportService
             return '';
         }
 
-        // Keep leading + and digits/spaces.
         $clean = preg_replace('/[^\d+]/', '', $phone) ?: '';
 
         return trim($clean);
