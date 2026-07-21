@@ -186,14 +186,24 @@ export default function MessagingTemplates({
         };
 
         // Laravel 12 boolean rules only accept 0/1 — FormData "false"/"" fails validation.
+        // Omit attachment unless a File is present (JSON null can 500 some file validators).
         form
-            .transform((data) => ({
-                ...data,
-                is_active: data.is_active ? 1 : 0,
-                remove_attachment: data.remove_attachment ? 1 : 0,
-                attachment: hasFile ? data.attachment : null,
-                ...(editing && hasFile ? { _method: 'put' } : {}),
-            }));
+            .transform((data) => {
+                const payload = {
+                    ...data,
+                    is_active: data.is_active ? 1 : 0,
+                    remove_attachment: data.remove_attachment ? 1 : 0,
+                    ...(editing && hasFile ? { _method: 'put' } : {}),
+                };
+
+                if (hasFile) {
+                    payload.attachment = data.attachment;
+                } else {
+                    delete payload.attachment;
+                }
+
+                return payload;
+            });
 
         if (editing) {
             if (hasFile) {

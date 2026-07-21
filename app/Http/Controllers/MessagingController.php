@@ -18,6 +18,7 @@ use App\Services\SaaS\EntitlementService;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -284,12 +285,17 @@ class MessagingController extends Controller
         $data = [
             ...$data,
             ...$attachmentMeta,
-            'header_format' => $this->resolveHeaderFormat(
-                (string) ($data['body'] ?? ''),
-                filled($attachmentMeta['attachment_path'] ?? null),
-            ),
             'organization_id' => $orgId,
         ];
+
+        if (Schema::hasColumn('message_templates', 'header_format')) {
+            $data['header_format'] = $this->resolveHeaderFormat(
+                (string) ($data['body'] ?? ''),
+                filled($attachmentMeta['attachment_path'] ?? null),
+            );
+        } else {
+            unset($data['attachment_path'], $data['attachment_filename'], $data['attachment_mime']);
+        }
 
         MessageTemplate::create($data);
 
@@ -336,15 +342,24 @@ class MessagingController extends Controller
             ];
         }
 
-        $hasAttachment = filled($data['attachment_path'] ?? $template->attachment_path);
-        if (array_key_exists('attachment_path', $data) && blank($data['attachment_path'])) {
-            $hasAttachment = false;
-        }
+        if (Schema::hasColumn('message_templates', 'header_format')) {
+            $hasAttachment = filled($data['attachment_path'] ?? $template->attachment_path);
+            if (array_key_exists('attachment_path', $data) && blank($data['attachment_path'])) {
+                $hasAttachment = false;
+            }
 
-        $data['header_format'] = $this->resolveHeaderFormat(
-            (string) ($data['body'] ?? $template->body),
-            $hasAttachment,
-        );
+            $data['header_format'] = $this->resolveHeaderFormat(
+                (string) ($data['body'] ?? $template->body),
+                $hasAttachment,
+            );
+        } else {
+            unset(
+                $data['header_format'],
+                $data['attachment_path'],
+                $data['attachment_filename'],
+                $data['attachment_mime'],
+            );
+        }
 
         $template->update($data);
 
