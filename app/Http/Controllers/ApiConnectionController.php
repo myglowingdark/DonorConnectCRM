@@ -20,22 +20,14 @@ use Inertia\Response;
 
 class ApiConnectionController extends Controller
 {
-    public function edit(Request $request, WordPressDonorSyncService $syncService): Response
+    public function edit(Request $request): Response
     {
-        return $this->renderEdit(
-            $this->resolveOrganization(null),
-            $syncService,
-        );
+        return $this->renderEdit($this->resolveOrganization(null));
     }
 
-    public function editForOrganization(
-        Organization $organization,
-        WordPressDonorSyncService $syncService,
-    ): Response {
-        return $this->renderEdit(
-            $this->resolveOrganization($organization),
-            $syncService,
-        );
+    public function editForOrganization(Organization $organization): Response
+    {
+        return $this->renderEdit($this->resolveOrganization($organization));
     }
 
     public function store(
@@ -87,7 +79,16 @@ class ApiConnectionController extends Controller
     {
         $this->authorize('manageSync', $organization);
 
-        $pairing = app(BridgePairingService::class)->generate($organization, request()->user());
+        try {
+            $pairing = app(BridgePairingService::class)->generate($organization, request()->user());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with(
+                'error',
+                'Could not generate pairing code. Run migrations on the server (php artisan migrate), then clear caches.',
+            );
+        }
 
         return back()->with([
             'success' => 'Pairing code generated. Paste it in WordPress Admin → DonorConnect within 15 minutes.',
@@ -237,8 +238,10 @@ class ApiConnectionController extends Controller
         }
     }
 
-    protected function renderEdit(Organization $organization, WordPressDonorSyncService $syncService): Response
+    protected function renderEdit(Organization $organization): Response
     {
+        $syncService = app(WordPressDonorSyncService::class);
+
         $connection = OrganizationApiConnection::query()
             ->forOrganization($organization->id)
             ->first();
@@ -247,7 +250,24 @@ class ApiConnectionController extends Controller
             ->forOrganization($organization->id)
             ->latest()
             ->limit(20)
-            ->get();
+            ->get()
+            ->map(fn (SyncRun $run) => [
+                'id' => $run->id,
+                'status' => $run->status?->value,
+                'donors_imported' => $run->donors_imported,
+                'donors_updated' => $run->donors_updated,
+                'donations_imported' => $run->donations_imported,
+                'donations_updated' => $run->donations_updated,
+                'error_details' => $run->error_details,
+                'started_at' => $run->started_at?->toIso8601String(),
+                'finished_at' => $run->finished_at?->toIso8601String(),
+            ])
+            ->values();
+
+        $orgId = $organization->id;
+        $connectionId = $connection?->id;
+        // Prefer relative path strings so a stale route:cache (missing new names) cannot 500 the page.
+        $syncBase = '/organizations/'.$orgId.'/sync';
 
         return Inertia::render('Sync/Settings', [
             'organization' => [
@@ -262,26 +282,15 @@ class ApiConnectionController extends Controller
             ]),
             'defaultMappings' => $syncService->defaultFieldMappings(),
             'crmApiBaseUrl' => url('/api/v1'),
-            // Relative URLs so actions work on live HTTPS even when APP_URL is wrong/http.
             'routes' => [
-                'store' => route('organizations.sync.store', $organization, false),
-                'pairing_code' => route('organizations.sync.pairing-code', $organization, false),
-                'update' => $connection
-                    ? route('organizations.sync.update', [$organization, $connection], false)
-                    : null,
-                'test' => $connection
-                    ? route('organizations.sync.test', [$organization, $connection], false)
-                    : null,
-                'run' => $connection
-                    ? route('organizations.sync.run', [$organization, $connection], false)
-                    : null,
-                'razorpay' => $connection
-                    ? route('organizations.sync.razorpay', [$organization, $connection], false)
-                    : null,
-                'razorpay_status' => $connection
-                    ? route('organizations.sync.razorpay-status', [$organization, $connection], false)
-                    : null,
-                'profile' => route('organizations.show', $organization, false),
+                'store' => $syncBase,
+                'pairing_code' => $syncBase.'/pairing-code',
+                'update' => $connectionId ? $syncBase.'/'.$connectionId : null,
+                'test' => $connectionId ? $syncBase.'/'.$connectionId.'/test' : null,
+                'run' => $connectionId ? $syncBase.'/'.$connectionId.'/run' : null,
+                'razorpay' => $connectionId ? $syncBase.'/'.$connectionId.'/razorpay' : null,
+                'razorpay_status' => $connectionId ? $syncBase.'/'.$connectionId.'/razorpay-status' : null,
+                'profile' => '/organizations/'.$orgId,
             ],
         ]);
     }
