@@ -28,9 +28,11 @@ export default function Login({ status, canResetPassword }) {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(109,245,225,0.25),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(144,168,255,0.35),transparent_45%)]" />
                     <div className="relative z-10">
                         <div className="mb-8 flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-white">
-                                <span className="material-symbols-outlined text-3xl">volunteer_activism</span>
-                            </div>
+                            <img
+                                src="/logo.png"
+                                alt="DonorConnect"
+                                className="h-12 w-12 rounded-xl object-cover"
+                            />
                             <div>
                                 <h1 className="text-2xl font-bold text-white">DonorConnect CRM</h1>
                                 <p className="text-sm text-primary-fixed">Trusted donor relationships</p>
@@ -54,9 +56,16 @@ export default function Login({ status, canResetPassword }) {
 
                 <div className="flex items-center justify-center bg-background px-6 py-12">
                     <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-elevated">
-                        <div className="mb-8 lg:hidden">
-                            <h1 className="text-2xl font-bold text-primary">DonorConnect CRM</h1>
-                            <p className="text-sm text-on-surface-variant">Sign in to continue</p>
+                        <div className="mb-8 flex items-center gap-3 lg:hidden">
+                            <img
+                                src="/logo.png"
+                                alt="DonorConnect"
+                                className="h-10 w-10 rounded-lg object-cover"
+                            />
+                            <div>
+                                <h1 className="text-2xl font-bold text-primary">DonorConnect CRM</h1>
+                                <p className="text-sm text-on-surface-variant">Sign in to continue</p>
+                            </div>
                         </div>
                         <h2 className="text-headline-md text-on-surface">Welcome back</h2>
                         <p className="mt-2 text-sm text-on-surface-variant">

@@ -271,9 +271,11 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
             >
                 <div className="mb-4 shrink-0 px-6">
                     <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-on-primary">
-                            <span className="material-symbols-outlined">volunteer_activism</span>
-                        </div>
+                        <img
+                            src="/logo.png"
+                            alt="DonorConnect"
+                            className="h-10 w-10 rounded-lg object-cover"
+                        />
                         <div>
                             <h1 className="text-headline-sm font-bold text-primary">DonorConnect</h1>
                             <p className="text-label-md text-on-surface-variant">CRM</p>
