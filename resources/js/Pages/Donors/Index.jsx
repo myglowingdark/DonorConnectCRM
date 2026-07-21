@@ -1,0 +1,310 @@
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import EmptyState from '@/Components/EmptyState';
+import StatusBadge from '@/Components/StatusBadge';
+import { formatDate, formatDateTime, formatINR } from '@/lib/format';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+
+const priorityMeta = {
+    overdue: { label: 'Overdue', className: 'bg-rose-100 text-rose-800' },
+    due_today: { label: 'Due today', className: 'bg-amber-100 text-amber-800' },
+    upcoming: { label: 'Upcoming', className: 'bg-sky-100 text-sky-800' },
+    new: { label: 'New / uncontacted', className: 'bg-teal-100 text-teal-800' },
+    later: { label: 'Later', className: 'bg-slate-100 text-slate-700' },
+    do_not_call: { label: 'Do not call', className: 'bg-rose-100 text-rose-800' },
+};
+
+export default function DonorsIndex({
+    donors,
+    filters = {},
+    nextToCall = null,
+    queueStats = {},
+    isVolunteer = false,
+}) {
+    const { auth } = usePage().props;
+    const [search, setSearch] = useState(filters.search || '');
+    const volunteerView = isVolunteer || auth.user?.role === 'volunteer';
+
+    const applyFilters = (next = {}) => {
+        const payload = { ...filters, search, ...next };
+
+        // Clear empty / undefined filter keys
+        Object.keys(payload).forEach((key) => {
+            if (payload[key] === undefined || payload[key] === null || payload[key] === '') {
+                delete payload[key];
+            }
+        });
+
+        router.get(route('donors.index'), payload, { preserveState: true, replace: true });
+    };
+
+    const toggle = (key) => {
+        const turningOn = !filters[key];
+        const next = {
+            needs_call: undefined,
+            assigned_to_me: undefined,
+            uncontacted: undefined,
+            follow_up_due: undefined,
+            interested: undefined,
+            do_not_call: undefined,
+        };
+
+        if (turningOn) {
+            next[key] = 1;
+        }
+
+        // "All my donors" clears queue filters
+        if (key === 'assigned_to_me' && turningOn) {
+            next.assigned_to_me = volunteerView ? undefined : 1;
+        }
+
+        applyFilters(next);
+    };
+
+    const chips = [
+        { key: 'needs_call', label: `Needs call${queueStats.needs_call != null ? ` (${queueStats.needs_call})` : ''}` },
+        { key: 'follow_up_due', label: `Follow-up due${queueStats.overdue != null || queueStats.due_today != null ? ` (${(queueStats.overdue || 0) + (queueStats.due_today || 0)})` : ''}` },
+        { key: 'uncontacted', label: `Uncontacted${queueStats.uncontacted != null ? ` (${queueStats.uncontacted})` : ''}` },
+        { key: 'interested', label: 'Interested' },
+        { key: 'do_not_call', label: 'Do not call' },
+        ...(!volunteerView ? [{ key: 'assigned_to_me', label: 'My donors' }] : [{ key: 'assigned_to_me', label: 'All my donors' }]),
+    ];
+
+    const showAllMine = volunteerView && !filters.needs_call && !filters.follow_up_due && !filters.uncontacted && !filters.interested && !filters.do_not_call;
+
+    return (
+        <AuthenticatedLayout header="Calling Queue">
+            <Head title="Donors" />
+
+            <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 className="text-headline-md">Who to call next</h2>
+                    <p className="text-sm text-on-surface-variant">
+                        Overdue and today’s follow-ups appear first, then new uncontacted donors.
+                    </p>
+                </div>
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        applyFilters({ needs_call: undefined });
+                    }}
+                    className="flex w-full max-w-md gap-2"
+                >
+                    <input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search name, phone, email"
+                        className="w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
+                    />
+                    <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+                        Search
+                    </button>
+                </form>
+            </div>
+
+            {nextToCall && !nextToCall.do_not_call && (
+                <div className="mb-6 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary to-primary-container p-5 text-white shadow-card">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-primary-fixed">Next interaction</p>
+                            <h3 className="mt-1 text-2xl font-bold">{nextToCall.full_name}</h3>
+                            <p className="mt-1 text-primary-fixed">{nextToCall.phone || 'No phone on file'}</p>
+                            <p className="mt-2 text-sm">
+                                {nextToCall.next_follow_up_at
+                                    ? `Follow-up: ${formatDateTime(nextToCall.next_follow_up_at)}`
+                                    : 'Not contacted yet — good first call'}
+                                {' · '}
+                                Last gift {formatINR(nextToCall.last_donation_amount)}
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {nextToCall.phone && (
+                                <a
+                                    href={`tel:${nextToCall.phone}`}
+                                    className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Call now
+                                </a>
+                            )}
+                            <Link
+                                href={route('donors.show', nextToCall.id)}
+                                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary"
+                            >
+                                Open & log outcome
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase text-rose-700">Overdue</p>
+                    <p className="text-2xl font-bold text-rose-800">{queueStats.overdue ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase text-amber-700">Due today</p>
+                    <p className="text-2xl font-bold text-amber-800">{queueStats.due_today ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase text-teal-700">Uncontacted</p>
+                    <p className="text-2xl font-bold text-teal-800">{queueStats.uncontacted ?? 0}</p>
+                </div>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+                {chips.map((chip) => {
+                    const active =
+                        chip.key === 'assigned_to_me'
+                            ? showAllMine || !!filters.assigned_to_me
+                            : !!filters[chip.key];
+                    return (
+                        <button
+                            key={chip.key}
+                            type="button"
+                            onClick={() => {
+                                if (chip.key === 'assigned_to_me' && volunteerView) {
+                                    applyFilters({
+                                        needs_call: undefined,
+                                        follow_up_due: undefined,
+                                        uncontacted: undefined,
+                                        interested: undefined,
+                                        do_not_call: undefined,
+                                        assigned_to_me: undefined,
+                                    });
+                                    return;
+                                }
+                                toggle(chip.key);
+                            }}
+                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                                active ? 'bg-primary text-white' : 'bg-surface-container text-on-surface-variant'
+                            }`}
+                        >
+                            {chip.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
+                {donors.data.length === 0 ? (
+                    <EmptyState
+                        icon="phone_in_talk"
+                        title="No one in this queue"
+                        description="Try “All my donors”, or clear filters. Ask an admin if you need more assignments."
+                    />
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-sm">
+                            <thead className="bg-surface-container-low text-xs uppercase text-on-surface-variant">
+                                <tr>
+                                    <th className="px-4 py-3">Priority</th>
+                                    <th className="px-4 py-3">Donor</th>
+                                    <th className="px-4 py-3">Phone</th>
+                                    <th className="px-4 py-3">Last donation</th>
+                                    <th className="px-4 py-3">Next interaction</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    {!volunteerView && <th className="px-4 py-3">Volunteer</th>}
+                                    <th className="px-4 py-3" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {donors.data.map((donor) => {
+                                    const priority = donor.call_priority || 'later';
+                                    const meta = priorityMeta[priority] || priorityMeta.later;
+                                    const overdue = priority === 'overdue';
+                                    const dueToday = priority === 'due_today';
+
+                                    return (
+                                        <tr
+                                            key={donor.id}
+                                            className={`border-t border-slate-100 hover:bg-slate-50 ${
+                                                overdue ? 'bg-rose-50/70' : dueToday ? 'bg-amber-50/60' : ''
+                                            }`}
+                                        >
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${meta.className}`}>
+                                                    {meta.label}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 font-medium">{donor.full_name}</td>
+                                            <td className="px-4 py-3">
+                                                {donor.phone ? (
+                                                    <a href={`tel:${donor.phone}`} className="font-medium text-secondary hover:underline">
+                                                        {donor.phone}
+                                                    </a>
+                                                ) : (
+                                                    '—'
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 tabular-nums">
+                                                {formatINR(donor.last_donation_amount)}
+                                                <div className="text-xs text-on-surface-variant">
+                                                    {formatDate(donor.last_donation_at)}
+                                                </div>
+                                            </td>
+                                            <td className={`px-4 py-3 ${overdue ? 'font-semibold text-rose-700' : dueToday ? 'font-semibold text-amber-700' : ''}`}>
+                                                {donor.next_follow_up_at
+                                                    ? formatDateTime(donor.next_follow_up_at)
+                                                    : donor.last_contacted_at
+                                                      ? 'No follow-up set'
+                                                      : 'Call first time'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <StatusBadge
+                                                    status={donor.donor_status}
+                                                    label={
+                                                        donor.donor_status?.replaceAll?.('_', ' ') ||
+                                                        donor.donor_status
+                                                    }
+                                                />
+                                            </td>
+                                            {!volunteerView && (
+                                                <td className="px-4 py-3">
+                                                    {donor.active_assignment?.volunteer?.name || '—'}
+                                                </td>
+                                            )}
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    {donor.phone && !donor.do_not_call && (
+                                                        <a
+                                                            href={`tel:${donor.phone}`}
+                                                            className="rounded-lg border border-secondary/30 px-3 py-1.5 text-xs font-semibold text-secondary"
+                                                        >
+                                                            Call
+                                                        </a>
+                                                    )}
+                                                    <Link
+                                                        href={route('donors.show', donor.id)}
+                                                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+                                                    >
+                                                        Open
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {donors.links?.length > 3 && (
+                    <div className="flex flex-wrap gap-2 border-t border-slate-100 p-4">
+                        {donors.links.map((link, idx) => (
+                            <Link
+                                key={idx}
+                                href={link.url || '#'}
+                                className={`rounded-lg px-3 py-1 text-xs ${
+                                    link.active ? 'bg-primary text-white' : 'bg-surface-container'
+                                } ${!link.url ? 'pointer-events-none opacity-40' : ''}`}
+                                dangerouslySetInnerHTML={{ __html: link.label }}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </AuthenticatedLayout>
+    );
+}

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DonorConnect CRM - Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for a cleaner CRM look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(241, 245, 249, 1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#213145",
+                      "background": "#f8f9ff",
+                      "primary-fixed": "#dce1ff",
+                      "on-background": "#0b1c30",
+                      "surface-bright": "#f8f9ff",
+                      "error-container": "#ffdad6",
+                      "surface-tint": "#4059aa",
+                      "surface": "#f8f9ff",
+                      "on-error": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "primary": "#00236f",
+                      "on-primary-fixed": "#00164e",
+                      "on-primary": "#ffffff",
+                      "on-tertiary-fixed": "#07006c",
+                      "primary-fixed-dim": "#b6c4ff",
+                      "on-surface-variant": "#444651",
+                      "on-secondary": "#ffffff",
+                      "outline": "#757682",
+                      "outline-variant": "#c5c5d3",
+                      "on-secondary-container": "#006f64",
+                      "on-surface": "#0b1c30",
+                      "primary-container": "#1e3a8a",
+                      "secondary-fixed": "#71f8e4",
+                      "secondary": "#006b5f",
+                      "on-tertiary": "#ffffff",
+                      "secondary-container": "#6df5e1",
+                      "surface-variant": "#d3e4fe",
+                      "surface-container": "#e5eeff",
+                      "surface-container-highest": "#d3e4fe",
+                      "secondary-fixed-dim": "#4fdbc8",
+                      "inverse-on-surface": "#eaf1ff",
+                      "tertiary": "#0d0097",
+                      "tertiary-container": "#2724b8",
+                      "surface-container-high": "#dce9ff",
+                      "tertiary-fixed-dim": "#c0c1ff",
+                      "tertiary-fixed": "#e1e0ff",
+                      "surface-container-low": "#eff4ff",
+                      "on-tertiary-container": "#a1a4ff",
+                      "error": "#ba1a1a",
+                      "on-primary-container": "#90a8ff",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-primary": "#b6c4ff",
+                      "on-primary-fixed-variant": "#264191",
+                      "on-secondary-fixed-variant": "#005048",
+                      "surface-dim": "#cbdbf5",
+                      "on-secondary-fixed": "#00201c",
+                      "on-tertiary-fixed-variant": "#2f2ebe"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "unit": "4px",
+                      "xl": "32px",
+                      "sm": "8px",
+                      "2xl": "48px",
+                      "lg": "24px",
+                      "xs": "4px",
+                      "container-margin": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "body-md": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "headline-sm": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- SIDE NAVIGATION SHELL -->
+<aside class="docked fixed left-0 top-0 h-full w-[280px] bg-surface-container-lowest flex flex-col py-gutter border-r border-outline-variant shadow-sm z-50">
+<!-- Organization Switcher -->
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container font-bold">ST</div>
+<div>
+<h2 class="text-headline-sm font-headline-sm font-bold text-primary">Seva Trust</h2>
+<p class="text-xs text-on-surface-variant font-label-md">Global Admin</p>
+</div>
+<span class="material-symbols-outlined ml-auto text-on-surface-variant cursor-pointer">expand_more</span>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-6 py-3 text-primary font-bold border-r-4 border-primary bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-label-md font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="text-label-md font-label-md">Donors</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="campaign">campaign</span>
+<span class="text-label-md font-label-md">Campaigns</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="text-label-md font-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="volunteer_activism">volunteer_activism</span>
+<span class="text-label-md font-label-md">Volunteers</span>
+</a>
+<a class="flex items-center gap-3 px-6 py-3 text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-label-md font-label-md">Settings</span>
+</a>
+</nav>
+<!-- CTA & Footer -->
+<div class="mt-auto px-6 space-y-4">
+<button class="w-full py-3 bg-primary text-on-primary rounded-xl font-label-md shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Create New Campaign
+            </button>
+<div class="pt-4 border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 py-2 text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="text-label-md font-label-md">Help Center</span>
+</a>
+<a class="flex items-center gap-3 py-2 text-on-surface-variant hover:text-error transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="text-label-md font-label-md">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TOP NAVIGATION BAR -->
+<header class="docked sticky top-0 ml-[280px] w-[calc(100%-280px)] h-16 bg-surface flex justify-between items-center px-gutter border-b border-outline-variant z-40">
+<div class="flex items-center gap-8">
+<h1 class="text-headline-md font-headline-md font-extrabold text-primary">DonorConnect CRM</h1>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-on-surface-variant hover:text-secondary transition-colors duration-200 text-label-md font-label-md" href="#">Organization Details</a>
+<a class="text-on-surface-variant hover:text-secondary transition-colors duration-200 text-label-md font-label-md" href="#">User Management</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="px-4 py-2 border border-primary text-primary rounded-lg font-label-md hover:bg-primary-fixed transition-all">
+                Export Data
+            </button>
+<button class="px-4 py-2 bg-secondary text-on-secondary rounded-lg font-label-md hover:scale-[0.98] transition-transform">
+                Add Donor
+            </button>
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border-2 border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Close up professional portrait of an organization admin with a friendly expression. The background is a clean, corporate office setting with soft daylight and high-trust atmosphere. Deep blues and whites dominate the color scheme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBo1VaHFfNGBT6wMtlw6v4huiOvZ8bp_1krEbhHOgDjJje-h8D8CO48WOsxx-kbjfw70EA_VOIxq2WieGR_YKMCBwnr28nwtnjkx-Uz1kmAEEgsk8dDrHoP_MoJvBf9w6SlchJZX0GlbsdL7OR39IW3TnhNwxIl4Zh3o_OozTmR2nR2SnqNWk5DDF_KGeEdGTC26hWkp7DI89LYWM50jECHME727_UGX7rYC3yj5Nf2djFmEDrvcx2m4F0-M7DiOUp13SFqHLCMdA"/>
+</div>
+</div>
+</header>
+<!-- MAIN CONTENT AREA -->
+<main class="ml-[280px] p-container-margin min-h-[calc(100vh-64px)]">
+<!-- Welcome Section -->
+<section class="mb-lg flex justify-between items-end">
+<div>
+<p class="text-primary font-bold text-label-md mb-1">DASHBOARD OVERVIEW</p>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">Welcome back, Admin</h2>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-2 px-4 py-2 bg-secondary-container/10 border border-secondary-container/30 text-secondary rounded-full font-label-md">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                    Sync Status: Healthy
+                </div>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-md mb-lg">
+<!-- Total Donations Card -->
+<div class="glass-card p-lg rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-md">
+<div class="p-2 bg-primary-container/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<span class="text-secondary font-label-md">+12.5%</span>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-xs">Total Donations</h3>
+<p class="text-headline-lg font-headline-lg text-on-surface">₹4,50,000</p>
+<div class="mt-4 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+<p class="mt-2 text-xs text-on-surface-variant">75% of monthly goal reached</p>
+</div>
+<!-- Active Volunteers Card -->
+<div class="glass-card p-lg rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-md">
+<div class="p-2 bg-secondary-container/10 rounded-lg text-secondary">
+<span class="material-symbols-outlined">group</span>
+</div>
+<span class="text-on-surface-variant font-label-md">Live Now</span>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-xs">Active Volunteers</h3>
+<p class="text-headline-lg font-headline-lg text-on-surface">12</p>
+<div class="flex -space-x-2 mt-4 overflow-hidden">
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" data-alt="A diverse group of professional volunteers smiling. Soft focus office background, professional lighting, corporate modern aesthetic. Colors include deep blues and teals." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtURUfJ1RKkSUvWe5Gc3IJ-OTXLo4l_HzpxcjdkkMzvBiRqZhdznyXCBTcR_-cGKwI7sTMZObZTV9DXmujAv9ggRLCMH_80nLjhsAINPVkx1tPI6L8kaeYPYG_4u7qNoK4QKjpyJLQC2CsB0wO74Y-iU8AYwB_1qnu8ewgYD3x_Q-Ov9ZEWHDgYRF3yUMMHJreScKvqOb6XvwtDmYagV8-8Yg_1udTFt7dF9jOuBCDMaq-Hkk17Ki_Hd9E2HzZ1NZ_DXIzJnWTLQ"/>
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" data-alt="Close-up headshots of professional volunteers, warm lighting, high trust, vibrant and positive atmosphere for a non-profit CRM." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGHkgURHSad3mQcU996JL6tGvJm-6MuvFIhi_-UGPT6pUXuiHSfmGb-QaKDkDJI5kk1HREwtNwHsGb3WufysS0WLywGo1KYuKSq4TYFfjlY93b966a-xaIZKC_b4MKj5BFRa0EPkoyqT-vW4vejTWQVV65vZYSX5poDXdpUkvKWJwQhlopP9r9XSd_14X4kgAf93KxtvU_SNINjplOyugz_mNrpYAL6SB28LGAInMoW2wt5Em594JtYmnFZIxLN-t74sXK_dv2Cg"/>
+<img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" data-alt="Portraits of diverse young professionals working in a social impact organization, high-key bright lighting, modern corporate style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsmOREzIxx7FL3mIYF7tGBfzkOFsaI28-s_8ogy5WjZw0J8-xhAgNTS1-lA1N5eY3UWk5Po5lgZDKv45hS8NgrY3UNko_Kkkosa_qSxI2Rc2XpZsKCmt-ifBrvyQXZ21eyd3_LYm3PLHxqRAZk9FXpUtR3o5KNIAuMakTQxbm7Nz48lyJ5wTShZj8LOfR5Xhz8HHjyw5GeLYpL3q0rOG8p1fT5zP3OrTr_NFSxRD1ckcbQU9hFhRE-7KwGWvT79C4OIVS0qpDSTg"/>
+<div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant">+9</div>
+</div>
+</div>
+<!-- Pending Actions Card -->
+<div class="glass-card p-lg rounded-xl shadow-sm hover:shadow-md transition-shadow bg-tertiary-container/5 border-tertiary-container/20">
+<div class="flex justify-between items-start mb-md">
+<div class="p-2 bg-tertiary-container/10 rounded-lg text-tertiary">
+<span class="material-symbols-outlined">assignment_late</span>
+</div>
+</div>
+<h3 class="text-on-surface-variant font-label-md mb-xs">Pending Actions</h3>
+<div class="space-y-3 mt-md">
+<div class="flex justify-between items-center">
+<span class="text-body-sm">Attribution Approvals</span>
+<span class="px-2 py-1 bg-tertiary text-on-tertiary rounded-lg text-xs font-bold">3</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-body-sm">Sync Errors</span>
+<span class="px-2 py-1 bg-surface-container text-on-surface-variant rounded-lg text-xs font-bold">0</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Charts Section -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-md mb-lg">
+<!-- Line Chart Mock -->
+<div class="glass-card p-lg rounded-xl shadow-sm">
+<div class="flex justify-between items-center mb-xl">
+<h3 class="text-headline-sm font-headline-sm text-on-surface">Weekly Donation Trends</h3>
+<select class="bg-transparent border-none text-label-md text-on-surface-variant focus:ring-0 cursor-pointer">
+<option>Last 7 Days</option>
+<option>Last 30 Days</option>
+</select>
+</div>
+<div class="relative h-64 w-full flex items-end justify-between gap-2 px-2">
+<!-- Simple CSS chart representation -->
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 40%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹45k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Mon</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 65%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹72k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Tue</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary rounded-t-lg relative" style="height: 90%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-primary">₹95k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant font-bold">Wed</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 50%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹55k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Thu</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 75%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹82k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Fri</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 30%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹35k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Sat</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative" style="height: 55%;">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold">₹60k</div>
+</div>
+<span class="text-[10px] mt-2 text-on-surface-variant">Sun</span>
+</div>
+</div>
+</div>
+<!-- Pie Chart Mock -->
+<div class="glass-card p-lg rounded-xl shadow-sm">
+<div class="flex justify-between items-center mb-xl">
+<h3 class="text-headline-sm font-headline-sm text-on-surface">Call Outcomes Breakdown</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">more_vert</span>
+</div>
+<div class="flex items-center h-64">
+<div class="relative w-48 h-48 mx-auto">
+<!-- CSS Donut Chart -->
+<div class="w-full h-full rounded-full border-[20px] border-primary-container/10 relative">
+<div class="absolute inset-0 rounded-full border-[20px] border-secondary border-l-transparent border-b-transparent rotate-45"></div>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-headline-md font-bold">1,240</span>
+<span class="text-[10px] uppercase tracking-wider text-on-surface-variant">Total Calls</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 flex-1">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+<span class="text-body-sm flex-1">Successful</span>
+<span class="text-label-md font-bold">65%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="text-body-sm flex-1">Follow-up</span>
+<span class="text-label-md font-bold">20%</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-outline-variant"></span>
+<span class="text-body-sm flex-1">No Answer</span>
+<span class="text-label-md font-bold">15%</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Team Performance Table -->
+<section class="glass-card rounded-xl shadow-sm overflow-hidden mb-xl">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center">
+<h3 class="text-headline-sm font-headline-sm text-on-surface">Team Performance</h3>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-lg py-4 text-label-md text-on-surface-variant">Volunteer</th>
+<th class="px-lg py-4 text-label-md text-on-surface-variant text-center">Calls</th>
+<th class="px-lg py-4 text-label-md text-on-surface-variant text-center">Successful Donations</th>
+<th class="px-lg py-4 text-label-md text-on-surface-variant text-right">Collection</th>
+<th class="px-lg py-4 text-label-md text-on-surface-variant text-center">Performance</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="px-lg py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">RV</div>
+<span class="text-body-md font-medium">Rahul Verma</span>
+</div>
+</td>
+<td class="px-lg py-4 text-center font-mono">120</td>
+<td class="px-lg py-4 text-center">15</td>
+<td class="px-lg py-4 text-right font-bold text-primary">₹75,000</td>
+<td class="px-lg py-4">
+<div class="flex items-center justify-center">
+<span class="px-3 py-1 bg-secondary-container/10 text-secondary rounded-full text-xs font-bold">TOP PERFORMER</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="px-lg py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center text-xs font-bold">AK</div>
+<span class="text-body-md font-medium">Anjali Kapoor</span>
+</div>
+</td>
+<td class="px-lg py-4 text-center font-mono">105</td>
+<td class="px-lg py-4 text-center">12</td>
+<td class="px-lg py-4 text-right font-bold text-primary">₹58,200</td>
+<td class="px-lg py-4">
+<div class="flex items-center justify-center">
+<span class="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold">CONSISTENT</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="px-lg py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center text-xs font-bold">SM</div>
+<span class="text-body-md font-medium">Suresh Menon</span>
+</div>
+</td>
+<td class="px-lg py-4 text-center font-mono">88</td>
+<td class="px-lg py-4 text-center">8</td>
+<td class="px-lg py-4 text-right font-bold text-primary">₹42,000</td>
+<td class="px-lg py-4">
+<div class="flex items-center justify-center">
+<span class="px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-xs font-bold">STEADY</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-surface-container-low text-center">
+<button class="text-primary font-bold text-label-md hover:underline">View All Team Members</button>
+</div>
+</section>
+<!-- Activity Feed / Recent Actions -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<div class="md:col-span-2 glass-card p-lg rounded-xl">
+<h3 class="text-headline-sm font-headline-sm text-on-surface mb-lg">Recent Activities</h3>
+<div class="space-y-6 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-outline-variant">
+<div class="flex gap-4 relative z-10">
+<div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-on-primary shrink-0 ring-4 ring-white">
+<span class="material-symbols-outlined text-[18px]">done</span>
+</div>
+<div class="flex-1">
+<p class="text-body-md text-on-surface"><span class="font-bold">Rahul Verma</span> logged a successful donation of <span class="text-secondary font-bold">₹15,000</span></p>
+<span class="text-xs text-on-surface-variant">12 minutes ago</span>
+</div>
+</div>
+<div class="flex gap-4 relative z-10">
+<div class="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-on-secondary shrink-0 ring-4 ring-white">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+</div>
+<div class="flex-1">
+<p class="text-body-md text-on-surface">New high-value donor <span class="font-bold">Dr. Sameer Roy</span> added to the system</p>
+<span class="text-xs text-on-surface-variant">2 hours ago</span>
+</div>
+</div>
+<div class="flex gap-4 relative z-10">
+<div class="w-9 h-9 rounded-full bg-tertiary flex items-center justify-center text-on-tertiary shrink-0 ring-4 ring-white">
+<span class="material-symbols-outlined text-[18px]">sync</span>
+</div>
+<div class="flex-1">
+<p class="text-body-md text-on-surface">System wide donor data sync completed successfully</p>
+<span class="text-xs text-on-surface-variant">5 hours ago</span>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-card p-lg rounded-xl flex flex-col justify-between overflow-hidden relative">
+<!-- Decorative background shader for high-end feel -->
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+
+</div>
+<div class="relative z-10">
+<h3 class="text-headline-sm font-headline-sm text-on-surface mb-xs">Campaign Focus</h3>
+<p class="text-body-sm text-on-surface-variant mb-lg">Education for All 2024</p>
+<div class="w-32 h-32 mx-auto mb-lg bg-primary-container/20 rounded-full flex items-center justify-center relative">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-primary-container/10" cx="64" cy="64" fill="transparent" r="54" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-primary" cx="64" cy="64" fill="transparent" r="54" stroke="currentColor" stroke-dasharray="339" stroke-dashoffset="100" stroke-width="12"></circle>
+</svg>
+<span class="absolute text-headline-sm font-bold text-primary">68%</span>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-body-sm">
+<span>Raised</span>
+<span class="font-bold">₹12,45,000</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span>Goal</span>
+<span class="font-bold text-on-surface-variant">₹18,00,000</span>
+</div>
+</div>
+</div>
+<button class="relative z-10 mt-xl w-full py-2 bg-surface-container text-primary font-bold rounded-lg hover:bg-primary-container/20 transition-colors">
+                    Campaign Details
+                </button>
+</div>
+</section>
+</main>
+<script>
+        // Micro-interaction for hover lift effect on bento cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.transition = 'transform 0.2s ease-out, shadow 0.2s ease-out';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Simple reactive search placeholder simulation
+        const searchInput = document.createElement('input');
+        // This is purely for demonstration of UI capability
+    </script>
+</body></html>

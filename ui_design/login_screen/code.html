@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login | DonorConnect CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "inverse-surface": "#213145",
+                "background": "#f8f9ff",
+                "primary-fixed": "#dce1ff",
+                "on-background": "#0b1c30",
+                "surface-bright": "#f8f9ff",
+                "error-container": "#ffdad6",
+                "surface-tint": "#4059aa",
+                "surface": "#f8f9ff",
+                "on-error": "#ffffff",
+                "on-error-container": "#93000a",
+                "primary": "#00236f",
+                "on-primary-fixed": "#00164e",
+                "on-primary": "#ffffff",
+                "on-tertiary-fixed": "#07006c",
+                "primary-fixed-dim": "#b6c4ff",
+                "on-surface-variant": "#444651",
+                "on-secondary": "#ffffff",
+                "outline": "#757682",
+                "outline-variant": "#c5c5d3",
+                "on-secondary-container": "#006f64",
+                "on-surface": "#0b1c30",
+                "primary-container": "#1e3a8a",
+                "secondary-fixed": "#71f8e4",
+                "secondary": "#006b5f",
+                "on-tertiary": "#ffffff",
+                "secondary-container": "#6df5e1",
+                "surface-variant": "#d3e4fe",
+                "surface-container": "#e5eeff",
+                "surface-container-highest": "#d3e4fe",
+                "secondary-fixed-dim": "#4fdbc8",
+                "inverse-on-surface": "#eaf1ff",
+                "tertiary": "#0d0097",
+                "tertiary-container": "#2724b8",
+                "surface-container-high": "#dce9ff",
+                "tertiary-fixed-dim": "#c0c1ff",
+                "tertiary-fixed": "#e1e0ff",
+                "surface-container-low": "#eff4ff",
+                "on-tertiary-container": "#a1a4ff",
+                "error": "#ba1a1a",
+                "on-primary-container": "#90a8ff",
+                "surface-container-lowest": "#ffffff",
+                "inverse-primary": "#b6c4ff",
+                "on-primary-fixed-variant": "#264191",
+                "on-secondary-fixed-variant": "#005048",
+                "surface-dim": "#cbdbf5",
+                "on-secondary-fixed": "#00201c",
+                "on-tertiary-fixed-variant": "#2f2ebe"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "fontFamily": {
+                "body-md": ["Inter"],
+                "headline-lg": ["Inter"],
+                "headline-md": ["Inter"],
+                "label-md": ["Inter"],
+                "headline-sm": ["Inter"]
+            },
+            "fontSize": {
+                "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                "headline-lg": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                "headline-sm": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .login-card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 md:p-0">
+<main class="w-full max-w-[1200px] h-full md:h-[720px] bg-surface-container-lowest rounded-2xl overflow-hidden login-card-shadow flex flex-col md:flex-row border border-outline-variant">
+<!-- Left Side: Illustration & Branding -->
+<section class="hidden md:flex md:w-1/2 bg-primary relative overflow-hidden p-12 flex-col justify-between">
+<!-- Decorative Background Element -->
+<div class="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
+<svg height="100%" preserveaspectratio="none" viewbox="0 0 100 100" width="100%">
+<defs>
+<pattern height="10" id="grid" patternunits="userSpaceOnUse" width="10">
+<path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid)" height="100%" width="100%"></rect>
+</svg>
+</div>
+<!-- Logo Area -->
+<div class="relative z-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-on-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1;">volunteer_activism</span>
+</div>
+<span class="text-headline-md font-headline-md text-on-primary tracking-tight">DonorConnect CRM</span>
+</div>
+</div>
+<!-- Hero Image/Illustration -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-full aspect-square max-w-[400px] rounded-3xl overflow-hidden shadow-2xl transform rotate-1 border-4 border-on-primary/10">
+<img class="w-full h-full object-cover" data-alt="A professional high-fidelity digital illustration depicting a diverse group of non-profit team members collaborating around a holographic glowing interface showing donor engagement metrics and heart icons. The scene uses a deep corporate blue and teal color palette with soft cinematic lighting. The style is modern, sleek, and high-trust, emphasizing human connection through technology in a clean, minimalist environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDGxkUspLFL1YvSFZSSTMgCarTTjqCgVzWAMnJcEAf32GamXF6vqjoNCXWhCyS1jSfG9oAyOyb7Lyujkd33HD8Z2Q_U9tE1qY1I9MpRrZ94XTjSjcGqv8jjb3KK3uh6lE18BLaphgi0aBu09pBd1vYclSdzoAh-5dC_Z7-dh29fE4W4YVyw6lTIpN2Dt9oGpuoI4oCTNeWfa8pPVX9pjn0NqtFWmDcYyELm56rKj7OztCpsMV00LM_ew65jUSsGr-gQT6a-AnVNoQ"/>
+</div>
+<div class="mt-8 text-center max-w-[340px]">
+<h2 class="text-headline-sm font-headline-sm text-on-primary mb-3">Empowering Your Mission</h2>
+<p class="text-body-md font-body-md text-on-primary/80">Manage donor relationships with clarity, transparency, and data-driven insights tailored for global impact.</p>
+</div>
+</div>
+<!-- Footer Quote/Social Proof -->
+<div class="relative z-10 pt-8 border-t border-on-primary/10">
+<div class="flex items-center gap-4">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-primary bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a smiling female non-profit director in her 40s, wearing business casual attire. Background is a soft-focus modern office. Corporate professional lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuuKPyq9hGKiOQRZlvBVA4xt-6XgcQzybohqjeJMH9yuQ3VzjwT8ARbpTPSi9_VhAIZlKCi1fbNlAZeV6boAL5gF9qpaBIn5GUMqO6WvUlhjJ68TrTrn-0QTqoJEaIqN2VGiIGxb-ID9tpGJMPHjX0vlQQY5sh0VywTHt-xxcPXlvN-CpNf4MicjJRHgdnOoWBukr0zPmVINJ0ReJ66C3RZA2GNz2dHiuoi_R0RBezXJwkbnjwHjm5ktRQmQmjil6pGzLXruVcJQ"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-primary bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a middle-aged male executive with glasses, smiling warmly. Studio lighting, clean corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBp0bBs0D_M4G2_kVCGbgYaQzzeuRluGa_bKcRDn77_6y3l5oLx9mjrgcyc6F-P_d-1OBiD4UlmMRFfaw5OKUumEzAo_jxi_F8BJ2uO7xlY-yk9OqeGTO-txR-Bl8v61r6OynAcgv7MgxqXzDvMKAgHBhHVV4IsRKGO5rNylKdM7s2Sm8Eo_QOKB1-nXmhxFG7sWZepDGYmj5-cYZ1n6J6tnPebdxGxtOCrRz8yw5WBCc3EBw-_CuCWGMN6_xvsOGVZwebKxL9DXQ"/>
+</div>
+</div>
+<p class="text-label-md font-label-md text-on-primary/70">Trusted by over 500+ global NGOs</p>
+</div>
+</div>
+</section>
+<!-- Right Side: Login Form -->
+<section class="w-full md:w-1/2 p-8 md:p-16 flex flex-col justify-center bg-surface-container-lowest">
+<!-- Mobile Logo (Visible only on small screens) -->
+<div class="md:hidden flex items-center gap-2 mb-10">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">volunteer_activism</span>
+</div>
+<span class="text-headline-sm font-headline-sm text-primary">DonorConnect CRM</span>
+</div>
+<div class="max-w-[400px] w-full mx-auto">
+<header class="mb-10">
+<h1 class="text-headline-lg font-headline-lg text-on-background mb-2">Welcome Back</h1>
+<p class="text-body-md font-body-md text-on-surface-variant">Please enter your credentials to access your dashboard.</p>
+</header>
+<form class="space-y-6" onsubmit="return false;">
+<!-- Email Field -->
+<div class="space-y-2">
+<label class="block text-label-md font-label-md text-on-surface" for="email">Email Address</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-secondary transition-colors">mail</span>
+<input class="w-full pl-11 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all placeholder:text-outline-variant" id="email" name="email" placeholder="name@organization.org" required="" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<label class="block text-label-md font-label-md text-on-surface" for="password">Password</label>
+<a class="text-label-md font-label-md text-secondary hover:underline transition-all" href="#">Forgot password?</a>
+</div>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-secondary transition-colors">lock</span>
+<input class="w-full pl-11 pr-12 py-3 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface focus:ring-2 focus:ring-secondary focus:border-transparent outline-none transition-all placeholder:text-outline-variant" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors" id="togglePassword" type="button">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<!-- Remember Me -->
+<div class="flex items-center">
+<input class="w-4 h-4 rounded border-outline-variant text-secondary focus:ring-secondary cursor-pointer" id="remember" type="checkbox"/>
+<label class="ml-3 text-label-md font-label-md text-on-surface-variant cursor-pointer select-none" for="remember">Remember this device for 30 days</label>
+</div>
+<!-- Login Button -->
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl text-label-md font-bold hover:bg-primary-container active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 group" type="submit">
+<span>Login to Dashboard</span>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</form>
+<!-- Footer Links -->
+<footer class="mt-12 text-center border-t border-outline-variant pt-8">
+<p class="text-body-sm font-body-sm text-on-surface-variant">
+                        Don't have an account yet? 
+                        <a class="text-secondary font-semibold hover:underline" href="#">Contact your administrator</a>
+</p>
+<div class="mt-6 flex justify-center gap-6 text-label-sm font-label-sm text-outline">
+<a class="hover:text-on-surface transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-on-surface transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-on-surface transition-colors" href="#">Support</a>
+</div>
+</footer>
+</div>
+</section>
+</main>
+<script>
+        // Micro-interactions for Password Toggle
+        const toggleBtn = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        
+        toggleBtn.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            toggleBtn.querySelector('span').innerText = type === 'password' ? 'visibility' : 'visibility_off';
+        });
+
+        // Simple button loading state simulation
+        const loginForm = document.querySelector('form');
+        const loginBtn = loginForm.querySelector('button[type="submit"]');
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const originalText = loginBtn.innerHTML;
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Verifying...</span>
+            `;
+            
+            setTimeout(() => {
+                loginBtn.innerHTML = `
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <span>Success</span>
+                `;
+                loginBtn.classList.replace('bg-primary', 'bg-secondary');
+                // Normally redirect here
+            }, 1500);
+        });
+    </script>
+</body></html>

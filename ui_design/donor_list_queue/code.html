@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Donor List &amp; Calling Queue | DonorConnect CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#213145",
+                        "background": "#f8f9ff",
+                        "primary-fixed": "#dce1ff",
+                        "on-background": "#0b1c30",
+                        "surface-bright": "#f8f9ff",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#4059aa",
+                        "surface": "#f8f9ff",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "primary": "#00236f",
+                        "on-primary-fixed": "#00164e",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#07006c",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "on-surface-variant": "#444651",
+                        "on-secondary": "#ffffff",
+                        "outline": "#757682",
+                        "outline-variant": "#c5c5d3",
+                        "on-secondary-container": "#006f64",
+                        "on-surface": "#0b1c30",
+                        "primary-container": "#1e3a8a",
+                        "secondary-fixed": "#71f8e4",
+                        "secondary": "#006b5f",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#6df5e1",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container": "#e5eeff",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#4fdbc8",
+                        "inverse-on-surface": "#eaf1ff",
+                        "tertiary": "#0d0097",
+                        "tertiary-container": "#2724b8",
+                        "surface-container-high": "#dce9ff",
+                        "tertiary-fixed-dim": "#c0c1ff",
+                        "tertiary-fixed": "#e1e0ff",
+                        "surface-container-low": "#eff4ff",
+                        "on-tertiary-container": "#a1a4ff",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#90a8ff",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#b6c4ff",
+                        "on-primary-fixed-variant": "#264191",
+                        "on-secondary-fixed-variant": "#005048",
+                        "surface-dim": "#cbdbf5",
+                        "on-secondary-fixed": "#00201c",
+                        "on-tertiary-fixed-variant": "#2f2ebe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "2xl": "48px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "container-margin": "24px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c5c5d3; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #757682; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- Sidebar Navigation -->
+<aside class="docked fixed left-0 top-0 h-full w-[280px] flex flex-col py-gutter bg-surface-container-lowest border-r border-outline-variant z-50">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<div>
+<h1 class="text-headline-sm font-headline-sm font-bold text-primary">DonorConnect CRM</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">Global Admin</p>
+</div>
+</div>
+<nav class="flex-grow px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-label-md font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold border-r-4 border-primary bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="text-label-md font-label-md">Donors</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">campaign</span>
+<span class="text-label-md font-label-md">Campaigns</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-label-md font-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">volunteer_activism</span>
+<span class="text-label-md font-label-md">Volunteers</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-label-md font-label-md">Settings</span>
+</a>
+</nav>
+<div class="px-6 py-6 border-t border-outline-variant space-y-1">
+<button class="w-full bg-primary text-on-primary py-3 px-4 rounded-xl text-label-md font-label-md hover:opacity-90 transition-opacity mb-4">
+                Create New Campaign
+            </button>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-label-md font-label-md">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-error" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="text-label-md font-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[280px] min-h-screen">
+<!-- Top App Bar -->
+<header class="sticky top-0 w-full z-40 bg-surface border-b border-outline-variant h-16 flex justify-between items-center px-container-margin">
+<div class="flex items-center gap-8">
+<h2 class="text-headline-md font-headline-md font-extrabold text-primary">Donor Queue</h2>
+<nav class="hidden md:flex gap-6">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 text-label-md font-label-md" href="#">Organization Details</a>
+<a class="text-on-surface-variant hover:text-secondary text-label-md font-label-md transition-colors" href="#">User Management</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-3">
+<button class="text-secondary font-semibold hover:bg-secondary-container/10 px-4 py-2 rounded-lg transition-colors text-label-md font-label-md">Export Data</button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-xl text-label-md font-label-md hover:opacity-90 transition-opacity">Add Donor</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a corporate administrator in a bright office setting, soft professional lighting, high-end photography style, clean background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6FI8L673NGtWLGUk8j1z3Y4O8k35wetGylLv1L--mq4bND8mjsnNdQ1kcs_ZYoDYWkGblPIFQjGypKnQiByX_RG_Mik1WF9H3WhACSMDMj4xTfdG7PMDpGinD7C7_G55A0XjPQVxlOi0YUDVjlSls-LHcn-O3ueVhvr5m_Zo7CMNTiOGKbMNnvPPjhyfOHJdZrwEYwVGTZXUMsChPA_FoFckUnP5VTLd91W8egaKhaRN46Vd0SvFeYmHk_linPWCTQTQvbOUHDw"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-container-margin">
+<!-- Search and Filter Section -->
+<div class="mb-8 space-y-6">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="relative w-full max-w-xl">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-2xl focus:ring-2 focus:ring-secondary focus:border-transparent transition-all outline-none text-body-md font-body-md" placeholder="Search donors by name, phone, or volunteer..." type="text"/>
+</div>
+<div class="flex items-center gap-3 overflow-x-auto pb-2 md:pb-0">
+<span class="text-label-md font-label-md text-on-surface-variant mr-2 whitespace-nowrap">Quick Filters:</span>
+<button class="px-5 py-2 bg-secondary text-on-secondary rounded-full text-label-md font-label-md shadow-sm">My Donors</button>
+<button class="px-5 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface-variant rounded-full text-label-md font-label-md hover:bg-secondary-container/20 transition-colors">Uncontacted</button>
+<button class="px-5 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface-variant rounded-full text-label-md font-label-md hover:bg-secondary-container/20 transition-colors">Overdue</button>
+<button class="p-2 bg-surface-container-lowest border border-outline-variant text-on-surface-variant rounded-xl hover:bg-secondary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bento Grid Stats (Optional but enhances UI) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-md mb-8">
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
+<p class="text-label-md font-label-md text-on-surface-variant mb-1">Total Due Today</p>
+<h3 class="text-headline-md font-headline-md text-primary font-bold">24 Donors</h3>
+</div>
+<div class="bg-error-container/10 p-6 rounded-xl border border-error/20 shadow-sm">
+<p class="text-label-md font-label-md text-error mb-1">Overdue Follow-ups</p>
+<h3 class="text-headline-md font-headline-md text-error font-bold">08 Donors</h3>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
+<p class="text-label-md font-label-md text-on-surface-variant mb-1">Queue Completed</p>
+<h3 class="text-headline-md font-headline-md text-secondary font-bold">62%</h3>
+</div>
+<div class="bg-primary p-6 rounded-xl shadow-lg relative overflow-hidden">
+
+<p class="text-label-md font-label-md text-primary-fixed mb-1 relative z-10">Total Collected</p>
+<h3 class="text-headline-md font-headline-md text-on-primary font-bold relative z-10 tabular-nums">₹8,45,000</h3>
+</div>
+</div>
+<!-- Main Data Table Container -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Donor Name</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Phone</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Last Donation</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Last Contacted</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Next Follow-up</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Status</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold">Assigned Volunteer</th>
+<th class="px-6 py-4 text-label-md font-label-md text-on-surface-variant font-semibold text-center">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Overdue Item -->
+<tr class="hover:bg-surface-container-lowest transition-colors bg-error-container/20">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-error-container text-on-error-container flex items-center justify-center font-bold text-xs">AM</div>
+<span class="text-body-md font-medium text-on-surface">Anita Mehta</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant tabular-nums">+91 98765 43210</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface tabular-nums font-medium">₹1,000</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant">2 days ago</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-error font-bold italic">Yesterday (Overdue)</td>
+<td class="px-6 py-4">
+<span class="px-3 py-1 bg-error-container/30 text-error text-[12px] font-bold rounded-full uppercase tracking-wider">Overdue</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-secondary-container/50"></div>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Priya Sharma</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center justify-center gap-2">
+<button class="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Call Donor">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">call</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="View Profile">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Normal Follow-up Item -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs">RK</div>
+<span class="text-body-md font-medium text-on-surface">Rajesh Kumar</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant tabular-nums">+91 91234 56789</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface tabular-nums font-medium">₹5,500</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant">5 days ago</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface font-semibold">Today</td>
+<td class="px-6 py-4">
+<span class="px-3 py-1 bg-secondary-container/30 text-secondary text-[12px] font-bold rounded-full uppercase tracking-wider">Follow-up</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-high"></div>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Priya Sharma</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center justify-center gap-2">
+<button class="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Call Donor">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">call</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="View Profile">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Another Row -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest text-primary flex items-center justify-center font-bold text-xs">SV</div>
+<span class="text-body-md font-medium text-on-surface">Sanya Varma</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant tabular-nums">+91 99887 76655</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface tabular-nums font-medium">₹12,000</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface-variant">10 days ago</td>
+<td class="px-6 py-4 text-body-sm font-body-sm text-on-surface">Tomorrow</td>
+<td class="px-6 py-4">
+<span class="px-3 py-1 bg-surface-container/50 text-on-surface-variant text-[12px] font-bold rounded-full uppercase tracking-wider">Scheduled</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-high"></div>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Anil Kapoor</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center justify-center gap-2">
+<button class="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Call Donor">
+<span class="material-symbols-outlined">call</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors" title="View Profile">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Empty State (Hidden by default, shown via search/filters) -->
+<div class="hidden flex-col items-center justify-center py-20 px-6 text-center" id="empty-state">
+<div class="w-64 h-64 mb-6 opacity-80">
+
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface font-bold">No donors found</h4>
+<p class="text-body-md font-body-md text-on-surface-variant max-w-sm mt-2">
+                        We couldn't find any donors matching your current search or filter criteria. Try adjusting your terms.
+                    </p>
+<button class="mt-6 px-6 py-2 border border-primary text-primary rounded-xl hover:bg-primary/5 transition-colors text-label-md font-label-md">
+                        Clear all filters
+                    </button>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 border-t border-outline-variant flex items-center justify-between">
+<p class="text-label-md font-label-md text-on-surface-variant">Showing 1 to 10 of 458 donors</p>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-lg disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-8 h-8 bg-primary text-on-primary rounded-lg text-label-md font-label-md">1</button>
+<button class="w-8 h-8 hover:bg-surface-container rounded-lg text-label-md font-label-md">2</button>
+<button class="w-8 h-8 hover:bg-surface-container rounded-lg text-label-md font-label-md">3</button>
+<span class="text-on-surface-variant px-1">...</span>
+<button class="w-8 h-8 hover:bg-surface-container rounded-lg text-label-md font-label-md">46</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-lg">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interaction for search bar simulation
+        const searchInput = document.querySelector('input[type="text"]');
+        const donorRows = document.querySelectorAll('tbody tr');
+        const emptyState = document.getElementById('empty-state');
+        const tableBody = document.querySelector('tbody');
+
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            let visibleCount = 0;
+            
+            donorRows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(val)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (visibleCount === 0) {
+                tableBody.style.display = 'none';
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                tableBody.style.display = '';
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+        });
+
+        // Filter Chip Interaction
+        const chips = document.querySelectorAll('button[class*="rounded-full"]');
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                chips.forEach(c => {
+                    c.classList.remove('bg-secondary', 'text-on-secondary');
+                    c.classList.add('bg-surface-container-lowest', 'border', 'border-outline-variant', 'text-on-surface-variant');
+                });
+                chip.classList.remove('bg-surface-container-lowest', 'border', 'border-outline-variant', 'text-on-surface-variant');
+                chip.classList.add('bg-secondary', 'text-on-secondary');
+            });
+        });
+    </script>
+</body></html>

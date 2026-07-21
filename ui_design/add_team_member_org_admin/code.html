@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Add New Team Member - DonorConnect CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-fixed": "#71f8e4",
+                      "outline": "#757682",
+                      "on-primary-container": "#90a8ff",
+                      "surface-container-highest": "#d3e4fe",
+                      "surface-dim": "#cbdbf5",
+                      "on-secondary-container": "#006f64",
+                      "on-tertiary-fixed-variant": "#2f2ebe",
+                      "on-error": "#ffffff",
+                      "error": "#ba1a1a",
+                      "surface-container": "#e5eeff",
+                      "outline-variant": "#c5c5d3",
+                      "primary-fixed-dim": "#b6c4ff",
+                      "on-tertiary": "#ffffff",
+                      "primary-fixed": "#dce1ff",
+                      "on-secondary-fixed": "#00201c",
+                      "tertiary-fixed": "#e1e0ff",
+                      "surface-variant": "#d3e4fe",
+                      "primary": "#00236f",
+                      "on-error-container": "#93000a",
+                      "on-surface": "#0b1c30",
+                      "on-primary-fixed-variant": "#264191",
+                      "error-container": "#ffdad6",
+                      "secondary-fixed-dim": "#4fdbc8",
+                      "inverse-primary": "#b6c4ff",
+                      "on-surface-variant": "#444651",
+                      "secondary-container": "#6df5e1",
+                      "secondary": "#006b5f",
+                      "surface": "#f8f9ff",
+                      "background": "#f8f9ff",
+                      "on-background": "#0b1c30",
+                      "tertiary-container": "#2724b8",
+                      "surface-tint": "#4059aa",
+                      "on-tertiary-fixed": "#07006c",
+                      "surface-container-low": "#eff4ff",
+                      "inverse-surface": "#213145",
+                      "primary-container": "#1e3a8a",
+                      "on-tertiary-container": "#a1a4ff",
+                      "on-secondary": "#ffffff",
+                      "inverse-on-surface": "#eaf1ff",
+                      "surface-bright": "#f8f9ff",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed-dim": "#c0c1ff",
+                      "tertiary": "#0d0097",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-fixed-variant": "#005048",
+                      "surface-container-high": "#dce9ff",
+                      "on-primary-fixed": "#00164e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "unit": "4px",
+                      "md": "16px",
+                      "sm": "8px",
+                      "xl": "32px",
+                      "gutter": "16px",
+                      "container-margin": "24px",
+                      "2xl": "48px",
+                      "xs": "4px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Inter"
+                      ],
+                      "headline-sm": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-sm": [
+                              "20px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col antialiased">
+<!-- Top Navigation (Shell suppressed based on task intent: deep linking/transactional form within Settings) -->
+<!-- Content Canvas -->
+<main class="flex-1 max-w-4xl mx-auto w-full px-gutter md:px-container-margin py-xl">
+<!-- Breadcrumb & Header -->
+<div class="mb-lg">
+<nav aria-label="Breadcrumb" class="flex text-label-md font-label-md text-on-surface-variant mb-unit">
+<ol class="inline-flex items-center space-x-1 md:space-x-2">
+<li class="inline-flex items-center">
+<a class="hover:text-primary transition-colors duration-200" href="#">Settings</a>
+</li>
+<li>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
+<a class="hover:text-primary transition-colors duration-200" href="#">Volunteers</a>
+</div>
+</li>
+<li aria-current="page">
+<div class="flex items-center">
+<span class="material-symbols-outlined text-[16px] mx-1">chevron_right</span>
+<span class="text-on-surface font-semibold">Add New Member</span>
+</div>
+</li>
+</ol>
+</nav>
+<h1 class="text-headline-lg font-headline-lg text-on-surface">Add New Member</h1>
+<p class="text-body-md font-body-md text-on-surface-variant mt-xs">Create a new volunteer profile and configure their access and compensation structure.</p>
+</div>
+<form class="space-y-gutter md:space-y-lg pb-2xl">
+<!-- Section: Personal Information -->
+<section class="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-outline-variant/30 relative">
+<div class="absolute -top-3 left-lg bg-surface-container-highest text-primary px-sm py-xs rounded-full text-label-sm font-label-sm shadow-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span>
+                    Personal Info
+                </div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter mt-sm">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="fullName">Full Name <span class="text-error">*</span></label>
+<input class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="fullName" placeholder="Enter full name" type="text"/>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="employeeId">Employee / Volunteer ID</label>
+<input class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="employeeId" placeholder="e.g. VOL-2024-001" type="text"/>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="email">Email Address <span class="text-error">*</span></label>
+<input class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="email" placeholder="name@organization.org" type="email"/>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="phone">Phone Number</label>
+<input class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="phone" placeholder="+91 98765 43210" type="tel"/>
+</div>
+</div>
+</section>
+<!-- Section: Role & Org -->
+<section class="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-outline-variant/30 relative">
+<div class="absolute -top-3 left-lg bg-surface-container-highest text-primary px-sm py-xs rounded-full text-label-sm font-label-sm shadow-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">badge</span>
+                    Assignment Details
+                </div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter mt-sm">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="primaryOrg">Primary Organization</label>
+<div class="relative">
+<select class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md bg-surface-container-low appearance-none cursor-not-allowed text-on-surface-variant" disabled="" id="primaryOrg">
+<option selected="">Global Charity Trust (Current)</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none">lock</span>
+</div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="role">Role <span class="text-error">*</span></label>
+<div class="relative">
+<select class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all appearance-none bg-white" id="role">
+<option disabled="" selected="" value="">Select a role</option>
+<option value="telecaller">Telecalling Volunteer</option>
+<option value="lead">Team Lead</option>
+<option value="manager">Manager</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="mt-lg pt-md border-t border-outline-variant/20 flex items-center justify-between">
+<div>
+<span class="block text-label-md font-label-md text-on-surface">Account Status</span>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Inactive accounts cannot access the CRM.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-outline-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+<span class="ml-3 text-label-md font-label-md text-on-surface">Active</span>
+</label>
+</div>
+</section>
+<!-- Section: Commission Settings -->
+<section class="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-outline-variant/30 relative">
+<div class="absolute -top-3 left-lg bg-surface-container-highest text-primary px-sm py-xs rounded-full text-label-sm font-label-sm shadow-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">payments</span>
+                    Commission Settings
+                </div>
+<p class="text-body-sm font-body-sm text-on-surface-variant mb-md mt-sm">Configure standard or overridden commission rates for successful donor acquisitions.</p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="baseRate">Base Rate Type</label>
+<div class="relative">
+<select class="w-full rounded-lg border border-outline-variant/50 px-md py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all appearance-none bg-white" id="baseRate">
+<option value="standard">Standard Tier 1 (10%)</option>
+<option value="custom">Custom Override</option>
+<option value="none">No Commission</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="overridePct">Custom Rate (%)</label>
+<div class="relative">
+<input class="w-full rounded-lg border border-outline-variant/50 pl-md pr-xl py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" disabled="" id="overridePct" placeholder="0.0" type="number"/>
+<span class="absolute right-md top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none font-medium">%</span>
+</div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-on-surface mb-unit" for="effectiveDate">Effective Date</label>
+<div class="relative">
+<input class="w-full rounded-lg border border-outline-variant/50 pl-md pr-xl py-sm text-body-md font-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="effectiveDate" type="date"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Actions -->
+<div class="flex justify-end gap-sm pt-md border-t border-outline-variant/20 sticky bottom-0 bg-background/90 backdrop-blur-sm py-md z-10">
+<button class="px-lg py-sm rounded-lg text-label-md font-label-md text-secondary border border-secondary hover:bg-secondary/5 transition-colors" type="button">
+                    Cancel
+                </button>
+<button class="px-lg py-sm rounded-lg text-label-md font-label-md text-on-primary bg-primary hover:bg-primary/90 shadow-sm transition-colors flex items-center gap-2" type="submit">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                    Save Team Member
+                </button>
+</div>
+</form>
+</main>
+<script>
+        // Simple logic to toggle custom rate input based on select
+        document.getElementById('baseRate').addEventListener('change', function(e) {
+            const input = document.getElementById('overridePct');
+            if(e.target.value === 'custom') {
+                input.disabled = false;
+                input.focus();
+            } else {
+                input.disabled = true;
+                input.value = '';
+            }
+        });
+    </script>
+</body></html>
