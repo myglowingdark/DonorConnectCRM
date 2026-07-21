@@ -56,14 +56,6 @@ php artisan queue:work
 * * * * * cd /Applications/MAMP/htdocs/DRM && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-## Demo logins (password: `password`)
-
-| Role | Email |
-|------|-------|
-| Super Admin | `admin@donorconnect.test` |
-| Organization Admin | `hope.admin@donorconnect.test` |
-| Volunteer | `priya@donorconnect.test` |
-
 ## Documentation
 
 - [Setup](docs/setup.md)

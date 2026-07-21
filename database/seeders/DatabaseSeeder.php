@@ -13,16 +13,18 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(PlanSeeder::class);
 
-        User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@glowingdark.com',
-            'password' => Hash::make('password'),
-            'role' => UserRole::SuperAdmin,
-            'email_verified_at' => now(),
-            'is_active' => true,
-        ]);
+        User::query()->updateOrCreate(
+            ['email' => 'admin@glowingdark.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password'),
+                'role' => UserRole::SuperAdmin,
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ],
+        );
 
-        $this->command?->info('Super Admin created:');
+        $this->command?->info('Super Admin ready:');
         $this->command?->info('  Email:    admin@glowingdark.com');
         $this->command?->info('  Password: password');
     }

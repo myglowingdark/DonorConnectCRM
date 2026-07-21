@@ -4,15 +4,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-
-// TEMP: demo/testing quick-login — remove before production
-const DEMO_USERS = [
-    { label: 'Super Admin', email: 'admin@donorconnect.test' },
-    { label: 'Org Admin', email: 'hope.admin@donorconnect.test' },
-    { label: 'Volunteer', email: 'priya@donorconnect.test' },
-];
-const DEMO_PASSWORD = 'password';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -26,19 +18,6 @@ export default function Login({ status, canResetPassword }) {
         post(route('login'), {
             onFinish: () => reset('password'),
         });
-    };
-
-    const loginAsDemo = (email) => {
-        setData({
-            email,
-            password: DEMO_PASSWORD,
-            remember: false,
-        });
-        router.post(
-            route('login'),
-            { email, password: DEMO_PASSWORD, remember: false },
-            { onFinish: () => reset('password') },
-        );
     };
 
     return (
@@ -143,32 +122,6 @@ export default function Login({ status, canResetPassword }) {
                                 Sign in
                             </PrimaryButton>
                         </form>
-
-                        {/* TEMP: demo/testing quick-login — remove before production */}
-                        <div className="mt-6 rounded-xl border border-dashed border-amber-300 bg-amber-50/80 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                                Demo login (temporary)
-                            </p>
-                            <p className="mt-1 text-xs text-amber-700/80">
-                                Password for all: <code className="font-mono">password</code>
-                            </p>
-                            <div className="mt-3 flex flex-col gap-2">
-                                {DEMO_USERS.map((user) => (
-                                    <button
-                                        key={user.email}
-                                        type="button"
-                                        disabled={processing}
-                                        onClick={() => loginAsDemo(user.email)}
-                                        className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-left text-sm font-medium text-on-surface transition hover:border-amber-400 hover:bg-amber-50 disabled:opacity-50"
-                                    >
-                                        {user.label}
-                                        <span className="mt-0.5 block text-xs font-normal text-on-surface-variant">
-                                            {user.email}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
