@@ -85,26 +85,11 @@ class WordPressDonorSyncService
                 return ['ok' => true, 'message' => 'Connection successful.', 'status' => $response->status()];
             }
 
-            $body = $response->json() ?? $response->body();
-            $detail = is_array($body)
-                ? (string) ($body['message'] ?? json_encode($body))
-                : (string) $body;
-
-            $message = 'Connection failed: HTTP '.$response->status();
-            if ($response->status() === 401) {
-                $message = 'WordPress rejected the API key/HMAC (HTTP 401). Re-copy secrets from WP Admin → DonorConnect and Save again.';
-                if ($detail !== '') {
-                    $message .= ' '.$detail;
-                }
-            } elseif ($detail !== '') {
-                $message .= ' '.$detail;
-            }
-
             return [
                 'ok' => false,
-                'message' => $message,
+                'message' => $this->bridgeFailureMessage($response, 'Connection failed'),
                 'status' => $response->status(),
-                'body' => $body,
+                'body' => $response->json() ?? $response->body(),
             ];
         } catch (Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
@@ -142,7 +127,7 @@ class WordPressDonorSyncService
                 );
 
                 if (! $response->successful()) {
-                    throw new \RuntimeException('Sync failed with HTTP '.$response->status().': '.$response->body());
+                    throw new \RuntimeException($this->bridgeFailureMessage($response, 'Sync failed'));
                 }
 
                 $payload = $response->json();
@@ -400,11 +385,94 @@ class WordPressDonorSyncService
             $request = $this->applyNonHmacAuth($request, $connection, $credentials);
         }
 
-        return match ($method) {
+        $response = match ($method) {
             'POST' => $request->withBody($body ?? '', 'application/json')->post($url),
             'PUT' => $request->withBody($body ?? '', 'application/json')->put($url),
             default => $request->get($url, $query),
         };
+
+        if ($response->status() >= 400) {
+            $this->logBridgeHttpFailure(
+                $connection,
+                $method,
+                $url,
+                $response,
+                $apiKey,
+                $hmacSecret,
+                $siteId,
+            );
+        }
+
+        return $response;
+    }
+
+    protected function logBridgeHttpFailure(
+        OrganizationApiConnection $connection,
+        string $method,
+        string $url,
+        \Illuminate\Http\Client\Response $response,
+        string $apiKey = '',
+        string $hmacSecret = '',
+        string $siteId = '',
+    ): void {
+        $json = $response->json();
+        $wpCode = is_array($json) ? (string) ($json['code'] ?? '') : '';
+        $wpMessage = is_array($json) ? (string) ($json['message'] ?? '') : '';
+        $status = $response->status();
+
+        $context = [
+            'connection_id' => $connection->id,
+            'organization_id' => $connection->organization_id,
+            'method' => strtoupper($method),
+            'url_path' => parse_url($url, PHP_URL_PATH),
+            'auth_type' => $connection->auth_type?->value,
+            'has_api_key' => $apiKey !== '',
+            'has_hmac_secret' => $hmacSecret !== '',
+            'has_site_id' => $siteId !== '',
+            'site_id_prefix' => $siteId !== '' ? substr($siteId, 0, 8).'…' : null,
+            'http_status' => $status,
+            'wp_code' => $wpCode !== '' ? $wpCode : null,
+            'wp_message' => $wpMessage !== '' ? $wpMessage : null,
+        ];
+
+        if ($status === 401) {
+            Log::error('wordpress.bridge.http_failed', $context);
+        } else {
+            Log::warning('wordpress.bridge.http_failed', $context);
+        }
+    }
+
+    protected function bridgeFailureMessage(
+        \Illuminate\Http\Client\Response $response,
+        string $prefix,
+    ): string {
+        $body = $response->json() ?? $response->body();
+        $wpCode = is_array($body) ? (string) ($body['code'] ?? '') : '';
+        $detail = is_array($body)
+            ? (string) ($body['message'] ?? json_encode($body))
+            : (string) $body;
+
+        $message = $prefix.': HTTP '.$response->status();
+
+        if ($response->status() === 401) {
+            $message = match ($wpCode) {
+                'dc_unauthorized' => 'WordPress rejected the API key (401). Use Pair with DonorConnect in WP Admin, or re-copy secrets from DonorConnect → Reveal secrets.',
+                'dc_bad_signature' => 'WordPress rejected the HMAC signature (401). Re-pair the site or paste a fresh HMAC secret.',
+                'dc_missing_hmac' => 'WordPress requires HMAC headers (401). Ensure Bridge HMAC is enabled and CRM auth type is HMAC.',
+                'dc_forbidden_ip' => 'WordPress blocked this CRM server IP (403). Add your CRM IP to Bridge → CRM IP allowlist.',
+                default => 'WordPress rejected bridge auth (401). Use Pair with DonorConnect or re-copy Site ID, API key, and HMAC secret.',
+            };
+        }
+
+        if ($detail !== '' && ! str_contains($message, $detail)) {
+            $message .= ' '.$detail;
+        }
+
+        if ($wpCode !== '' && ! str_contains($message, $wpCode)) {
+            $message .= ' ['.$wpCode.']';
+        }
+
+        return $message;
     }
 
     /**
@@ -514,7 +582,7 @@ class WordPressDonorSyncService
         if (! $response->successful()) {
             return [
                 'ok' => false,
-                'message' => 'Failed to read Razorpay config: HTTP '.$response->status().' '.$response->body(),
+                'message' => $this->bridgeFailureMessage($response, 'Failed to read Razorpay config'),
             ];
         }
 

@@ -10,6 +10,7 @@ use App\Models\Organization;
 use App\Models\OrganizationApiConnection;
 use App\Models\SyncRun;
 use App\Services\AuditLogger;
+use App\Services\WordPress\BridgePairingService;
 use App\Services\WordPress\WordPressDonorSyncService;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
@@ -80,6 +81,19 @@ class ApiConnectionController extends Controller
         $this->authorize('update', $connection);
 
         return $this->persistUpdate($request, $connection, $auditLogger);
+    }
+
+    public function generatePairingCode(Organization $organization): RedirectResponse
+    {
+        $this->authorize('manageSync', $organization);
+
+        $pairing = app(BridgePairingService::class)->generate($organization, request()->user());
+
+        return back()->with([
+            'success' => 'Pairing code generated. Paste it in WordPress Admin → DonorConnect within 15 minutes.',
+            'bridge_pairing_code' => $pairing['plaintext'],
+            'bridge_pairing_expires_at' => $pairing['expires_at'],
+        ]);
     }
 
     public function test(OrganizationApiConnection $connection): RedirectResponse
@@ -247,9 +261,11 @@ class ApiConnectionController extends Controller
                 'label' => $t->label(),
             ]),
             'defaultMappings' => $syncService->defaultFieldMappings(),
+            'crmApiBaseUrl' => url('/api/v1'),
             // Relative URLs so actions work on live HTTPS even when APP_URL is wrong/http.
             'routes' => [
                 'store' => route('organizations.sync.store', $organization, false),
+                'pairing_code' => route('organizations.sync.pairing-code', $organization, false),
                 'update' => $connection
                     ? route('organizations.sync.update', [$organization, $connection], false)
                     : null,

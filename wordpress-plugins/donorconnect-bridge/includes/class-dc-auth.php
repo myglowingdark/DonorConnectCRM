@@ -25,8 +25,12 @@ class DC_Bridge_Auth {
 			}
 		}
 
-		if ( $api_key === '' || ! hash_equals( (string) $settings['api_key'], $api_key ) ) {
-			return new WP_Error( 'dc_unauthorized', 'Invalid API key.', array( 'status' => 401 ) );
+		if ( $api_key === '' ) {
+			return new WP_Error( 'dc_unauthorized', 'API key missing.', array( 'status' => 401 ) );
+		}
+
+		if ( ! hash_equals( (string) $settings['api_key'], $api_key ) ) {
+			return new WP_Error( 'dc_unauthorized', 'API key does not match.', array( 'status' => 401 ) );
 		}
 
 		$allowed = trim( (string) $settings['allowed_ips'] );

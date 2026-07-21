@@ -83,6 +83,110 @@ class DC_Bridge_Admin {
 		if ( $action === 'reveal' ) {
 			DC_Bridge_Plugin::update_settings( array( 'credentials_shown' => true ) );
 		}
+
+		if ( $action === 'pair' ) {
+			$crm_url       = esc_url_raw( wp_unslash( (string) ( $_POST['pair_crm_url'] ?? '' ) ) );
+			$pairing_code  = sanitize_text_field( wp_unslash( (string) ( $_POST['pairing_code'] ?? '' ) ) );
+			$result        = self::pair_with_crm( $crm_url, $pairing_code );
+
+			if ( is_wp_error( $result ) ) {
+				add_settings_error( 'dc_bridge', 'pair_failed', $result->get_error_message(), 'error' );
+			} else {
+				add_settings_error( 'dc_bridge', 'paired', $result, 'updated' );
+			}
+		}
+	}
+
+	/**
+	 * @return string|WP_Error Success notice text.
+	 */
+	private static function pair_with_crm( string $crm_url, string $pairing_code ) {
+		$crm_url      = rtrim( $crm_url, '/' );
+		$pairing_code = trim( $pairing_code );
+
+		if ( $crm_url === '' || $pairing_code === '' ) {
+			return new WP_Error( 'dc_pair_missing', __( 'CRM URL and pairing code are required.', 'donorconnect-bridge' ) );
+		}
+
+		if ( ! str_starts_with( $pairing_code, 'dc_pair_' ) ) {
+			return new WP_Error( 'dc_pair_invalid', __( 'Pairing code must start with dc_pair_. Generate a fresh code in DonorConnect CRM.', 'donorconnect-bridge' ) );
+		}
+
+		$settings = DC_Bridge_Plugin::settings();
+		$endpoint = self::pair_endpoint_url( $crm_url );
+
+		$response = wp_remote_post(
+			$endpoint,
+			array(
+				'timeout' => 30,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $pairing_code,
+					'Content-Type'  => 'application/json',
+					'Accept'        => 'application/json',
+				),
+				'body'    => wp_json_encode(
+					array(
+						'site_id'       => (string) $settings['site_id'],
+						'api_key'       => (string) $settings['api_key'],
+						'hmac_secret'   => (string) $settings['hmac_secret'],
+						'rest_base_url' => rest_url( 'donorconnect/v1' ),
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$msg    = is_array( $body ) ? (string) ( $body['message'] ?? '' ) : '';
+
+		if ( $status >= 400 ) {
+			return new WP_Error(
+				'dc_pair_http',
+				$msg !== '' ? $msg : sprintf(
+					/* translators: %d: HTTP status code */
+					__( 'Pairing failed (HTTP %d). Check CRM URL and that the code has not expired.', 'donorconnect-bridge' ),
+					$status
+				)
+			);
+		}
+
+		$patch = array(
+			'crm_base_url' => self::crm_base_from_url( $crm_url ),
+		);
+
+		if ( is_array( $body ) && ! empty( $body['push_token'] ) ) {
+			$patch['crm_org_token'] = sanitize_text_field( (string) $body['push_token'] );
+		}
+
+		DC_Bridge_Plugin::update_settings( $patch );
+
+		return __( 'Paired with DonorConnect. Return to CRM and click Test connection.', 'donorconnect-bridge' );
+	}
+
+	private static function pair_endpoint_url( string $crm_url ): string {
+		if ( str_ends_with( $crm_url, '/api/v1' ) ) {
+			return $crm_url . '/bridge/pair';
+		}
+		if ( str_ends_with( $crm_url, '/api' ) ) {
+			return $crm_url . '/v1/bridge/pair';
+		}
+
+		return $crm_url . '/api/v1/bridge/pair';
+	}
+
+	private static function crm_base_from_url( string $crm_url ): string {
+		if ( str_ends_with( $crm_url, '/api/v1' ) ) {
+			return substr( $crm_url, 0, -strlen( '/api/v1' ) );
+		}
+		if ( str_ends_with( $crm_url, '/api' ) ) {
+			return substr( $crm_url, 0, -strlen( '/api' ) );
+		}
+
+		return $crm_url;
 	}
 
 	public function render(): void {
@@ -100,8 +204,35 @@ class DC_Bridge_Admin {
 
 			<div class="dc-grid">
 				<div class="dc-card">
+					<h2><?php esc_html_e( 'Pair with DonorConnect CRM', 'donorconnect-bridge' ); ?></h2>
+					<p><?php esc_html_e( 'In DonorConnect → Organization → WordPress site, click Generate pairing code, then paste the CRM URL and code here (one use, 15 minutes).', 'donorconnect-bridge' ); ?></p>
+					<form method="post">
+						<?php wp_nonce_field( 'dc_bridge_save' ); ?>
+						<input type="hidden" name="dc_bridge_action" value="pair" />
+						<table class="form-table">
+							<tr>
+								<th><label for="pair_crm_url"><?php esc_html_e( 'CRM URL', 'donorconnect-bridge' ); ?></label></th>
+								<td>
+									<input type="url" class="regular-text" name="pair_crm_url" id="pair_crm_url" value="<?php echo esc_attr( (string) $settings['crm_base_url'] ); ?>" placeholder="https://donorconnect.example.com" required />
+									<p class="description"><?php esc_html_e( 'Your DonorConnect site URL (not the WordPress REST URL).', 'donorconnect-bridge' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th><label for="pairing_code"><?php esc_html_e( 'Pairing code', 'donorconnect-bridge' ); ?></label></th>
+								<td>
+									<input type="text" class="regular-text code" name="pairing_code" id="pairing_code" autocomplete="off" placeholder="dc_pair_…" required />
+								</td>
+							</tr>
+						</table>
+						<p>
+							<button type="submit" class="button button-primary"><?php esc_html_e( 'Pair with DonorConnect', 'donorconnect-bridge' ); ?></button>
+						</p>
+					</form>
+				</div>
+
+				<div class="dc-card">
 					<h2><?php esc_html_e( 'Secure link credentials', 'donorconnect-bridge' ); ?></h2>
-					<p><?php esc_html_e( 'Paste these into DonorConnect CRM → Org profile → WordPress site (or Team → WordPress site) for this organization. Each partner site has unique credentials. Super Admin or Org Admin can connect.', 'donorconnect-bridge' ); ?></p>
+					<p><?php esc_html_e( 'Manual fallback: paste these into DonorConnect CRM → WordPress site if you are not using pairing.', 'donorconnect-bridge' ); ?></p>
 					<table class="form-table">
 						<tr>
 							<th><?php esc_html_e( 'Site ID', 'donorconnect-bridge' ); ?></th>

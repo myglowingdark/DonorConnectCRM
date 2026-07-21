@@ -2,7 +2,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import StatusBadge from '@/Components/StatusBadge';
 import { formatDateTime } from '@/lib/format';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
 export default function SyncSettings({
     organization,
@@ -10,8 +11,11 @@ export default function SyncSettings({
     history,
     authTypes,
     defaultMappings,
+    crmApiBaseUrl,
     routes: actionRoutes,
 }) {
+    const { flash } = usePage().props;
+    const [copied, setCopied] = useState(false);
     const form = useForm({
         name: connection?.name || 'DonorConnect Bridge',
         base_url: connection?.base_url || '',
@@ -60,7 +64,52 @@ export default function SyncSettings({
                     </Link>
                 )}
                 <div className="mt-3 rounded-xl border border-slate-100 bg-surface-container-low p-4 text-xs text-on-surface-variant">
-                    <p className="font-semibold text-on-surface">Bridge setup for this org</p>
+                    <p className="font-semibold text-on-surface">Recommended: Pair with DonorConnect</p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4">
+                        <li>Click Generate pairing code below (valid 15 minutes, one use).</li>
+                        <li>
+                            In WordPress Admin → DonorConnect, paste CRM URL{' '}
+                            <code>{crmApiBaseUrl?.replace('/v1', '') || '/api'}</code> and the pairing code.
+                        </li>
+                        <li>Click Pair with DonorConnect in WordPress, then Test connection here.</li>
+                    </ol>
+                </div>
+                <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => router.post(actionRoutes?.pairing_code)}
+                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                        >
+                            Generate pairing code
+                        </button>
+                        {flash?.bridge_pairing_code && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    navigator.clipboard?.writeText(flash.bridge_pairing_code);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                }}
+                                className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                            >
+                                {copied ? 'Copied' : 'Copy code'}
+                            </button>
+                        )}
+                    </div>
+                    {flash?.bridge_pairing_code && (
+                        <div className="mt-3 space-y-1 text-sm">
+                            <p className="font-mono break-all rounded-lg bg-white px-3 py-2 text-on-surface">
+                                {flash.bridge_pairing_code}
+                            </p>
+                            <p className="text-xs text-on-surface-variant">
+                                Expires {formatDateTime(flash.bridge_pairing_expires_at)} · paste once in WordPress
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <div className="mt-3 rounded-xl border border-slate-100 bg-surface-container-low p-4 text-xs text-on-surface-variant">
+                    <p className="font-semibold text-on-surface">Manual setup (fallback)</p>
                     <ol className="mt-2 list-decimal space-y-1 pl-4">
                         <li>
                             Install <code>wordpress-plugins/donorconnect-bridge</code> on this org’s WordPress site

@@ -33,6 +33,8 @@ class OrgWordPressSyncActionsTest extends TestCase
                 ->where('routes.razorpay', $base.'/razorpay')
                 ->where('routes.razorpay_status', $base.'/razorpay-status')
                 ->where('routes.update', $base)
+                ->where('routes.pairing_code', '/organizations/'.$org->id.'/sync/pairing-code')
+                ->has('crmApiBaseUrl')
             );
     }
 

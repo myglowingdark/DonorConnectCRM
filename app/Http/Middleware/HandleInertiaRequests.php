@@ -99,6 +99,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
+                'bridge_pairing_code' => fn () => $request->session()->get('bridge_pairing_code'),
+                'bridge_pairing_expires_at' => fn () => $request->session()->get('bridge_pairing_expires_at'),
             ],
             'subscriptionLock' => $subscriptionLock,
             'features' => $features,

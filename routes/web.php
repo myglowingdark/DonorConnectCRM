@@ -365,6 +365,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/organizations/{organization}/sync', [ApiConnectionController::class, 'storeForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.store');
+        Route::post('/organizations/{organization}/sync/pairing-code', [ApiConnectionController::class, 'generatePairingCode'])
+            ->middleware('throttle:sync')
+            ->name('organizations.sync.pairing-code');
         Route::put('/organizations/{organization}/sync/{connection}', [ApiConnectionController::class, 'updateForOrganization'])
             ->middleware('throttle:sync')
             ->name('organizations.sync.update');
