@@ -285,6 +285,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/messaging/templates/{template}/submit-meta', [MessagingController::class, 'submitTemplate'])
             ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
             ->name('messaging.templates.submit-meta');
+        Route::post('/messaging/templates/sync-meta', [MessagingController::class, 'syncPendingTemplates'])
+            ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
+            ->name('messaging.templates.sync-meta-pending');
         Route::post('/messaging/templates/{template}/sync-meta', [MessagingController::class, 'syncTemplate'])
             ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
             ->name('messaging.templates.sync-meta');

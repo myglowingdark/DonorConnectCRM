@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import StatusBadge from '@/Components/StatusBadge';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const emptyForm = {
     name: '',
@@ -15,15 +15,47 @@ const emptyForm = {
     meta_category: 'UTILITY',
 };
 
+const statusTone = {
+    draft: 'idle',
+    pending: 'running',
+    approved: 'success',
+    rejected: 'failed',
+    paused: 'follow_up',
+};
+
 export default function MessagingTemplates({
     templates,
     channels,
     hasWhatsAppFeature = false,
     canManageWhatsAppTemplates = false,
     metaCategories = [],
+    metaStatuses = [],
+    pendingMetaSyncCount = 0,
 }) {
     const [editing, setEditing] = useState(null);
     const form = useForm({ ...emptyForm });
+
+    const statusLabels = useMemo(() => {
+        return Object.fromEntries(metaStatuses.map((s) => [s.value, s.label]));
+    }, [metaStatuses]);
+
+    const hasPending = pendingMetaSyncCount > 0
+        || templates.some((t) => t.channel === 'whatsapp' && (t.meta_status === 'pending' || t.meta_status === 'paused'));
+
+    useEffect(() => {
+        if (!canManageWhatsAppTemplates || !hasPending) {
+            return undefined;
+        }
+
+        const timer = window.setInterval(() => {
+            router.post(route('messaging.templates.sync-meta-pending'), {}, {
+                preserveScroll: true,
+                preserveState: false,
+            });
+        }, 20000);
+
+        return () => window.clearInterval(timer);
+    }, [canManageWhatsAppTemplates, hasPending]);
 
     const openCreate = () => {
         setEditing(null);
@@ -77,12 +109,29 @@ export default function MessagingTemplates({
                     <h2 className="text-headline-md">Templates</h2>
                     <p className="text-sm text-on-surface-variant">
                         Reusable email, WhatsApp, and SMS copy. WhatsApp templates require Meta approval before sending.
+                        Pending approvals auto-sync from Meta.
                     </p>
                 </div>
                 <Link href={route('messaging.settings')} className="text-sm font-semibold text-secondary">
                     Messaging settings
                 </Link>
             </div>
+
+            {hasPending && canManageWhatsAppTemplates && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <span>
+                        Waiting for Meta approval on {pendingMetaSyncCount || 'some'} template(s). Status refreshes
+                        automatically every 20 seconds.
+                    </span>
+                    <button
+                        type="button"
+                        className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold"
+                        onClick={() => router.post(route('messaging.templates.sync-meta-pending'))}
+                    >
+                        Refresh now
+                    </button>
+                </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-5">
                 <form onSubmit={submit} className="space-y-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-card lg:col-span-2">
@@ -207,7 +256,10 @@ export default function MessagingTemplates({
                                             <p className="font-semibold">{t.name}</p>
                                             <StatusBadge status={t.channel} label={t.channel} />
                                             {t.channel === 'whatsapp' && t.meta_status && (
-                                                <StatusBadge status={t.meta_status} label={t.meta_status} />
+                                                <StatusBadge
+                                                    status={statusTone[t.meta_status] || t.meta_status}
+                                                    label={statusLabels[t.meta_status] || t.meta_status}
+                                                />
                                             )}
                                             {!t.is_active && (
                                                 <span className="text-[10px] font-semibold uppercase text-on-surface-variant">
@@ -225,6 +277,9 @@ export default function MessagingTemplates({
                                         {t.meta_rejection_reason && (
                                             <p className="mt-1 text-xs text-error">{t.meta_rejection_reason}</p>
                                         )}
+                                        {t.channel === 'whatsapp' && t.meta_status === 'pending' && (
+                                            <p className="mt-1 text-xs text-amber-700">Auto-syncing approval status from Meta…</p>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         {(t.channel !== 'whatsapp' || canManageWhatsAppTemplates) && (
@@ -236,23 +291,14 @@ export default function MessagingTemplates({
                                                 Edit
                                             </button>
                                         )}
-                                        {t.channel === 'whatsapp' && canManageWhatsAppTemplates && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => router.post(route('messaging.templates.submit-meta', t.id))}
-                                                    className="text-xs font-semibold text-secondary"
-                                                >
-                                                    Submit to Meta
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => router.post(route('messaging.templates.sync-meta', t.id))}
-                                                    className="text-xs font-semibold text-secondary"
-                                                >
-                                                    Sync status
-                                                </button>
-                                            </>
+                                        {t.channel === 'whatsapp' && canManageWhatsAppTemplates && t.meta_status !== 'approved' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => router.post(route('messaging.templates.submit-meta', t.id))}
+                                                className="text-xs font-semibold text-secondary"
+                                            >
+                                                {t.meta_status === 'pending' ? 'Resubmit to Meta' : 'Submit to Meta'}
+                                            </button>
                                         )}
                                         {(t.channel !== 'whatsapp' || canManageWhatsAppTemplates) && (
                                             <button

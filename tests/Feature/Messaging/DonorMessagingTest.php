@@ -393,7 +393,7 @@ class DonorMessagingTest extends TestCase
         $this->assertSame(MetaTemplateStatus::Pending, $template->fresh()->meta_status);
         $this->assertSame('tmpl-1', $template->fresh()->meta_template_id);
 
-        $this->post(route('messaging.templates.sync-meta', $template))
+        $this->post(route('messaging.templates.sync-meta-pending'))
             ->assertRedirect();
 
         $this->assertSame(MetaTemplateStatus::Approved, $template->fresh()->meta_status);

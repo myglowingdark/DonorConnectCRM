@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\MessageStatus;
 use App\Models\OutboundMessage;
 use App\Models\PlatformMessagingSetting;
+use App\Services\Messaging\MessageService;
 use App\Services\Messaging\MetaWhatsAppCredentialResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -28,8 +29,11 @@ class MetaWhatsAppWebhookController extends Controller
         return response('Forbidden', 403);
     }
 
-    public function handle(Request $request, MetaWhatsAppCredentialResolver $resolver): Response
-    {
+    public function handle(
+        Request $request,
+        MetaWhatsAppCredentialResolver $resolver,
+        MessageService $messages,
+    ): Response {
         $platformCreds = $resolver->platformWebhookCredentials();
         $signature = (string) $request->header('X-Hub-Signature-256', '');
 
@@ -46,7 +50,16 @@ class MetaWhatsAppWebhookController extends Controller
 
         foreach ($entries as $entry) {
             foreach (data_get($entry, 'changes', []) as $change) {
-                $statuses = data_get($change, 'value.statuses', []);
+                $field = $change['field'] ?? null;
+                $value = $change['value'] ?? [];
+
+                if ($field === 'message_template_status_update' && is_array($value)) {
+                    $messages->applyMetaTemplateStatusWebhook($value);
+
+                    continue;
+                }
+
+                $statuses = data_get($value, 'statuses', []);
                 foreach ($statuses as $statusRow) {
                     $this->applyStatusUpdate($statusRow);
                 }

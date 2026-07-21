@@ -252,7 +252,94 @@ class MessageService
         $template->update([
             'meta_template_id' => isset($match['id']) ? (string) $match['id'] : $template->meta_template_id,
             'meta_status' => MetaTemplateStatus::fromMetaApi($match['status'] ?? null),
-            'meta_rejection_reason' => $match['rejected_reason'] ?? $match['quality_score']['score'] ?? null,
+            'meta_rejection_reason' => $match['rejected_reason'] ?? data_get($match, 'quality_score.score'),
+        ]);
+
+        return $template->fresh();
+    }
+
+    /**
+     * Best-effort sync for WhatsApp templates awaiting Meta review.
+     *
+     * @return int Number of templates refreshed
+     */
+    public function syncPendingWhatsAppTemplates(Organization $organization): int
+    {
+        $templates = MessageTemplate::query()
+            ->forOrganization($organization->id)
+            ->where('channel', MessageChannel::WhatsApp)
+            ->whereNotNull('meta_name')
+            ->where(function ($query) {
+                $query->whereIn('meta_status', [
+                    MetaTemplateStatus::Pending->value,
+                    MetaTemplateStatus::Paused->value,
+                ])->orWhere(function ($inner) {
+                    $inner->whereNotNull('meta_template_id')
+                        ->whereNotIn('meta_status', [
+                            MetaTemplateStatus::Approved->value,
+                            MetaTemplateStatus::Rejected->value,
+                        ]);
+                });
+            })
+            ->get();
+
+        $synced = 0;
+
+        foreach ($templates as $template) {
+            try {
+                $this->syncTemplateFromMeta($template, $organization);
+                $synced++;
+            } catch (\Throwable $e) {
+                Log::info('WhatsApp template auto-sync skipped', [
+                    'template_id' => $template->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $synced;
+    }
+
+    public function applyMetaTemplateStatusWebhook(array $value): ?MessageTemplate
+    {
+        $name = $value['message_template_name'] ?? null;
+        $language = $value['message_template_language'] ?? null;
+        $event = $value['event'] ?? $value['message_template_status'] ?? null;
+        $templateId = isset($value['message_template_id']) ? (string) $value['message_template_id'] : null;
+
+        if (blank($name) && blank($templateId)) {
+            return null;
+        }
+
+        $query = MessageTemplate::query()->where('channel', MessageChannel::WhatsApp);
+
+        if (filled($templateId)) {
+            $query->where(function ($q) use ($templateId, $name) {
+                $q->where('meta_template_id', $templateId);
+                if (filled($name)) {
+                    $q->orWhere('meta_name', $name);
+                }
+            });
+        } else {
+            $query->where('meta_name', $name);
+        }
+
+        if (filled($language)) {
+            $query->where(function ($q) use ($language) {
+                $q->whereNull('meta_language')->orWhere('meta_language', $language);
+            });
+        }
+
+        $template = $query->latest('id')->first();
+
+        if (! $template) {
+            return null;
+        }
+
+        $template->update([
+            'meta_template_id' => $templateId ?: $template->meta_template_id,
+            'meta_status' => MetaTemplateStatus::fromMetaApi(is_string($event) ? $event : null),
+            'meta_rejection_reason' => $value['reason'] ?? $value['rejected_reason'] ?? $template->meta_rejection_reason,
         ]);
 
         return $template->fresh();

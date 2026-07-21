@@ -178,7 +178,7 @@ class MessagingController extends Controller
         return back()->with('success', "Connected Meta WhatsApp for this organization ({$label}).");
     }
 
-    public function templates(Request $request, EntitlementService $entitlements): Response
+    public function templates(Request $request, EntitlementService $entitlements, MessageService $messages): Response
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $orgId = OrganizationContext::id();
@@ -186,6 +186,15 @@ class MessagingController extends Controller
 
         $organization = Organization::query()->findOrFail($orgId);
         $canManageWhatsApp = $request->user()->isSuperAdmin() || $request->user()->isOrganizationAdmin();
+        $hasWhatsApp = $entitlements->hasFeature($organization, 'whatsapp');
+
+        if ($hasWhatsApp && $canManageWhatsApp) {
+            try {
+                $messages->syncPendingWhatsAppTemplates($organization);
+            } catch (\Throwable $e) {
+                // Page should still load even if Meta is unreachable.
+            }
+        }
 
         $templates = MessageTemplate::query()
             ->forOrganization($orgId)
@@ -193,14 +202,20 @@ class MessagingController extends Controller
             ->orderBy('name')
             ->get();
 
+        $pendingCount = $templates
+            ->where('channel', MessageChannel::WhatsApp)
+            ->whereIn('meta_status', [MetaTemplateStatus::Pending, MetaTemplateStatus::Paused])
+            ->count();
+
         return Inertia::render('Messaging/Templates', [
             'templates' => $templates,
             'channels' => collect(MessageChannel::cases())->map(fn ($c) => [
                 'value' => $c->value,
                 'label' => $c->label(),
             ]),
-            'hasWhatsAppFeature' => $entitlements->hasFeature($organization, 'whatsapp'),
-            'canManageWhatsAppTemplates' => $canManageWhatsApp && $entitlements->hasFeature($organization, 'whatsapp'),
+            'hasWhatsAppFeature' => $hasWhatsApp,
+            'canManageWhatsAppTemplates' => $canManageWhatsApp && $hasWhatsApp,
+            'pendingMetaSyncCount' => $pendingCount,
             'metaCategories' => [
                 ['value' => 'UTILITY', 'label' => 'Utility'],
                 ['value' => 'MARKETING', 'label' => 'Marketing'],
@@ -300,7 +315,7 @@ class MessagingController extends Controller
         $organization = Organization::query()->findOrFail($orgId);
         $messages->submitTemplateToMeta($template, $organization, $request->user());
 
-        return back()->with('success', 'Template submitted to Meta for approval.');
+        return back()->with('success', 'Template submitted to Meta. Status will auto-sync while approval is pending.');
     }
 
     public function syncTemplate(
@@ -316,6 +331,25 @@ class MessagingController extends Controller
         $updated = $messages->syncTemplateFromMeta($template, $organization);
 
         return back()->with('success', 'Template status synced: '.$updated->meta_status?->label());
+    }
+
+    public function syncPendingTemplates(
+        Request $request,
+        MessageService $messages,
+        EntitlementService $entitlements,
+    ): RedirectResponse {
+        abort_unless($request->user()?->isSuperAdmin() || $request->user()?->isOrganizationAdmin(), 403);
+        $orgId = OrganizationContext::id();
+        abort_unless($orgId, 403);
+
+        $organization = Organization::query()->findOrFail($orgId);
+        $entitlements->assertFeature($organization, 'whatsapp');
+
+        $synced = $messages->syncPendingWhatsAppTemplates($organization);
+
+        return back()->with('success', $synced > 0
+            ? "Auto-synced {$synced} WhatsApp template(s) from Meta."
+            : 'No pending WhatsApp templates needed a status refresh.');
     }
 
     public function send(
