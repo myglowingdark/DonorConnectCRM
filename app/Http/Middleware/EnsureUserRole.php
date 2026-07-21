@@ -49,6 +49,7 @@ class EnsureUserRole
                 UserRole::TeamLead->value,
                 UserRole::Finance->value,
                 UserRole::Viewer->value,
+                UserRole::Volunteer->value,
             ],
             default => [$role],
         };

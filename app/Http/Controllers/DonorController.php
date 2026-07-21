@@ -227,7 +227,7 @@ class DonorController extends Controller
             $nextDonorId = Donor::query()
                 ->forOrganization($donor->organization_id)
                 ->assignedTo($request->user()->id)
-                ->callable()
+                ->needsCall()
                 ->where('id', '!=', $donor->id)
                 ->orderForNextCall()
                 ->value('id');
@@ -375,7 +375,7 @@ class DonorController extends Controller
             $nextId = Donor::query()
                 ->forOrganization($donor->organization_id)
                 ->when($request->user()->isVolunteer(), fn ($q) => $q->assignedTo($request->user()->id))
-                ->callable()
+                ->needsCall()
                 ->where('id', '!=', $donor->id)
                 ->orderForNextCall()
                 ->value('id');

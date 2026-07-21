@@ -1,0 +1,25 @@
+.dc-bridge-wrap .dc-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin: 16px 0;
+}
+.dc-bridge-wrap .dc-card {
+  background: #fff;
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+.dc-bridge-wrap .dc-secret {
+  word-break: break-all;
+  display: inline-block;
+  max-width: 100%;
+}
+.dc-bridge-wrap .dc-result {
+  background: #f6f7f7;
+  padding: 12px;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow: auto;
+}

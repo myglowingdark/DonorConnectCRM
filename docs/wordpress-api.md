@@ -2,11 +2,14 @@
 
 Each organization stores one connection in `organization_api_connections`.
 
+For partner NGOBuddy sites, prefer the **DonorConnect Bridge** plugin — see [wordpress-bridge.md](./wordpress-bridge.md).
+
 ## Auth types
 
 - `bearer` — `Authorization: Bearer {token}`
 - `basic` — HTTP Basic username/password
 - `api_key` — custom header (default `X-API-Key`)
+- `hmac` — DonorConnect Bridge (API key + HMAC-SHA256 signed headers)
 - `none` — public endpoint (local testing)
 
 Credentials are stored with Laravel `encrypted:array` casts and **never** returned to the React UI (only `has_credentials` flag).

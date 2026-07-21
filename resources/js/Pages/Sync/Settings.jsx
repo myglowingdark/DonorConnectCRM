@@ -6,14 +6,16 @@ import { Head, router, useForm } from '@inertiajs/react';
 
 export default function SyncSettings({ connection, history, authTypes, defaultMappings }) {
     const form = useForm({
-        name: connection?.name || 'WordPress Donors',
+        name: connection?.name || 'DonorConnect Bridge',
         base_url: connection?.base_url || '',
-        auth_type: connection?.auth_type || 'bearer',
+        auth_type: connection?.auth_type || 'hmac',
         token: '',
         username: '',
         password: '',
         api_key: '',
-        api_key_header: 'X-API-Key',
+        api_key_header: 'X-DC-API-Key',
+        hmac_secret: '',
+        site_id: '',
         field_mappings: connection?.field_mappings || defaultMappings,
         is_active: connection?.is_active ?? true,
     });
@@ -34,8 +36,18 @@ export default function SyncSettings({ connection, history, authTypes, defaultMa
             <div className="mb-6">
                 <h2 className="text-headline-md">Donor API connection</h2>
                 <p className="text-sm text-on-surface-variant">
-                    Credentials are encrypted and never sent back to the browser after saving.
+                    Connect the DonorConnect Bridge WordPress plugin (installed on each org partner site). Credentials
+                    are encrypted and never shown again after saving.
                 </p>
+                <div className="mt-3 rounded-xl border border-slate-100 bg-surface-container-low p-4 text-xs text-on-surface-variant">
+                    <p className="font-semibold text-on-surface">Bridge setup</p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4">
+                        <li>Install <code>wordpress-plugins/donorconnect-bridge</code> on the partner WordPress site (alongside NGOBuddy).</li>
+                        <li>Open WP Admin → DonorConnect → Reveal secrets (Site ID, API Key, HMAC Secret).</li>
+                        <li>Paste REST base URL like <code>https://partner.org/wp-json/donorconnect/v1</code> below.</li>
+                        <li>Auth type: <strong>HMAC (DonorConnect Bridge)</strong>. Save, then Test connection / Sync now.</li>
+                    </ol>
+                </div>
             </div>
 
             {!connection && (
@@ -86,6 +98,32 @@ export default function SyncSettings({ connection, history, authTypes, defaultMa
                             <input type="password" className="rounded-xl border-slate-200" placeholder="API key" value={form.data.api_key} onChange={(e) => form.setData('api_key', e.target.value)} />
                         </div>
                     )}
+                    {form.data.auth_type === 'hmac' && (
+                        <div className="space-y-3">
+                            <input
+                                className="w-full rounded-xl border-slate-200"
+                                placeholder="Site ID (from WP plugin)"
+                                value={form.data.site_id}
+                                onChange={(e) => form.setData('site_id', e.target.value)}
+                            />
+                            <input
+                                type="password"
+                                className="w-full rounded-xl border-slate-200"
+                                placeholder={connection?.has_credentials ? 'API key (leave blank to keep)' : 'API key'}
+                                value={form.data.api_key}
+                                onChange={(e) => form.setData('api_key', e.target.value)}
+                                autoComplete="new-password"
+                            />
+                            <input
+                                type="password"
+                                className="w-full rounded-xl border-slate-200"
+                                placeholder={connection?.has_credentials ? 'HMAC secret (leave blank to keep)' : 'HMAC secret'}
+                                value={form.data.hmac_secret}
+                                onChange={(e) => form.setData('hmac_secret', e.target.value)}
+                                autoComplete="new-password"
+                            />
+                        </div>
+                    )}
 
                     <div className="rounded-xl bg-surface-container-low p-4 text-xs text-on-surface-variant">
                         <p className="mb-2 font-semibold text-on-surface">Default field mappings</p>
@@ -110,7 +148,25 @@ export default function SyncSettings({ connection, history, authTypes, defaultMa
                                     onClick={() => router.post(route('sync.run', connection.id))}
                                     className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white"
                                 >
-                                    Sync now
+                                    Sync donors now
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.post(route('sync.razorpay-status', connection.id))}
+                                    className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                                >
+                                    Check WP Razorpay
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm('Pull Razorpay API keys from the WordPress NGOBuddy site into this organization?')) {
+                                            router.post(route('sync.razorpay', connection.id));
+                                        }
+                                    }}
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Sync Razorpay keys
                                 </button>
                             </>
                         )}

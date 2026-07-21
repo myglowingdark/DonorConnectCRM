@@ -140,6 +140,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/sync/{connection}/run', [ApiConnectionController::class, 'sync'])
             ->middleware(['role:admin', 'throttle:sync'])
             ->name('sync.run');
+        Route::post('/sync/{connection}/razorpay', [ApiConnectionController::class, 'syncRazorpay'])
+            ->middleware(['role:admin', 'throttle:sync'])
+            ->name('sync.razorpay');
+        Route::post('/sync/{connection}/razorpay-status', [ApiConnectionController::class, 'razorpayStatus'])
+            ->middleware(['role:admin', 'throttle:sync'])
+            ->name('sync.razorpay-status');
 
         Route::get('/reports', [ReportController::class, 'index'])
             ->middleware('role:admin')

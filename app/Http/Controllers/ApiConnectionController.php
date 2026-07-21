@@ -137,6 +137,35 @@ class ApiConnectionController extends Controller
         return back()->with('success', 'Donor sync queued. Refresh shortly to see results.');
     }
 
+    public function syncRazorpay(OrganizationApiConnection $connection, WordPressDonorSyncService $service, AuditLogger $auditLogger): RedirectResponse
+    {
+        $this->authorize('sync', $connection);
+
+        $result = $service->syncRazorpayCredentials($connection);
+
+        if ($result['ok']) {
+            $auditLogger->log('organization.razorpay_synced_from_wordpress', $connection->organization, null, [
+                'key_id' => $result['key_id'] ?? null,
+                'connection_id' => $connection->id,
+            ], $connection->organization_id);
+        }
+
+        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+    }
+
+    public function razorpayStatus(OrganizationApiConnection $connection, WordPressDonorSyncService $service): RedirectResponse
+    {
+        $this->authorize('sync', $connection);
+
+        $result = $service->razorpayStatus($connection);
+        $message = $result['ok']
+            ? ('WordPress Razorpay '.(($result['configured'] ?? false) ? 'configured' : 'not configured')
+                .(! empty($result['key_id_masked']) ? ' ('.$result['key_id_masked'].')' : ''))
+            : ('Could not read Razorpay status: '.($result['message'] ?? 'unknown'));
+
+        return back()->with($result['ok'] ? 'success' : 'error', $message);
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -152,6 +181,13 @@ class ApiConnectionController extends Controller
             'api_key' => array_filter([
                 'key' => $data['api_key'] ?? null,
                 'header' => $data['api_key_header'] ?? 'X-API-Key',
+            ]),
+            'hmac' => array_filter([
+                'api_key' => $data['api_key'] ?? null,
+                'key' => $data['api_key'] ?? null,
+                'header' => 'X-DC-API-Key',
+                'hmac_secret' => $data['hmac_secret'] ?? null,
+                'site_id' => $data['site_id'] ?? null,
             ]),
             default => [],
         };

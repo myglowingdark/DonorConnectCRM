@@ -40,9 +40,25 @@ class WordPressDonorSyncService
     public function testConnection(OrganizationApiConnection $connection): array
     {
         try {
-            $response = $this->client($connection)->get($this->endpoint($connection, 'donors'), [
-                'per_page' => 1,
-            ]);
+            $healthUrl = rtrim($connection->base_url, '/').'/health';
+            $response = $this->signedRequest($connection, 'GET', $healthUrl);
+
+            if ($response->successful()) {
+                return [
+                    'ok' => true,
+                    'message' => 'Bridge connection successful.',
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ];
+            }
+
+            // Fallback to donors endpoint for legacy connectors.
+            $response = $this->signedRequest(
+                $connection,
+                'GET',
+                $this->endpoint($connection, 'donors'),
+                ['per_page' => 1, 'page' => 1],
+            );
 
             if ($response->successful()) {
                 return ['ok' => true, 'message' => 'Connection successful.', 'status' => $response->status()];
@@ -79,10 +95,15 @@ class WordPressDonorSyncService
             $perPage = (int) data_get($connection->sync_settings, 'per_page', 100);
 
             do {
-                $response = $this->client($connection)->get($this->endpoint($connection, 'donors'), [
-                    'page' => $page,
-                    'per_page' => $perPage,
-                ]);
+                $response = $this->signedRequest(
+                    $connection,
+                    'GET',
+                    $this->endpoint($connection, 'donors'),
+                    [
+                        'page' => $page,
+                        'per_page' => $perPage,
+                    ],
+                );
 
                 if (! $response->successful()) {
                     throw new \RuntimeException('Sync failed with HTTP '.$response->status().': '.$response->body());
@@ -292,6 +313,49 @@ class WordPressDonorSyncService
         return $base.'/'.ltrim((string) $path, '/');
     }
 
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    protected function signedRequest(
+        OrganizationApiConnection $connection,
+        string $method,
+        string $url,
+        array $query = [],
+        ?string $body = null,
+    ): \Illuminate\Http\Client\Response {
+        $request = $this->client($connection);
+        $method = strtoupper($method);
+
+        if ($connection->auth_type === ApiAuthType::Hmac) {
+            $credentials = $connection->credentials ?? [];
+            ksort($query);
+            $queryString = http_build_query($query);
+            $path = (string) (parse_url($url, PHP_URL_PATH) ?: '');
+            // WP REST get_route() omits /wp-json prefix.
+            $path = (string) preg_replace('#^/wp-json#', '', $path);
+            $pathWithQuery = $path.($queryString !== '' ? '?'.$queryString : '');
+            $bodyString = $body ?? '';
+            $timestamp = (string) time();
+            $nonce = bin2hex(random_bytes(16));
+            $payload = $timestamp.'.'.$nonce.'.'.$method.'.'.$pathWithQuery.'.'.hash('sha256', $bodyString);
+            $signature = hash_hmac('sha256', $payload, (string) ($credentials['hmac_secret'] ?? ''));
+
+            $request = $request->withHeaders([
+                'X-DC-API-Key' => (string) ($credentials['api_key'] ?? $credentials['key'] ?? ''),
+                'X-DC-Timestamp' => $timestamp,
+                'X-DC-Nonce' => $nonce,
+                'X-DC-Signature' => $signature,
+                'X-DC-Site-Id' => (string) ($credentials['site_id'] ?? ''),
+            ]);
+        }
+
+        return match ($method) {
+            'POST' => $request->withBody($body ?? '', 'application/json')->post($url),
+            'PUT' => $request->withBody($body ?? '', 'application/json')->put($url),
+            default => $request->get($url, $query),
+        };
+    }
+
     protected function client(OrganizationApiConnection $connection): PendingRequest
     {
         $request = Http::timeout(60)->acceptJson();
@@ -303,10 +367,175 @@ class WordPressDonorSyncService
                 (string) ($credentials['username'] ?? ''),
                 (string) ($credentials['password'] ?? ''),
             ),
-            ApiAuthType::ApiKey => $request->withHeaders([
-                (string) ($credentials['header'] ?? 'X-API-Key') => (string) ($credentials['key'] ?? ''),
+            ApiAuthType::ApiKey, ApiAuthType::Hmac => $request->withHeaders([
+                (string) ($credentials['header'] ?? 'X-DC-API-Key') => (string) ($credentials['key'] ?? $credentials['api_key'] ?? ''),
             ]),
             default => $request,
         };
+    }
+
+    /**
+     * Ingest donor payloads pushed from the WordPress bridge (same upsert rules as pull sync).
+     *
+     * @param  list<array<string, mixed>>  $records
+     * @return array{donors_imported:int,donors_updated:int,donations_imported:int,donations_updated:int}
+     */
+    public function ingestRecords(int $organizationId, array $records): array
+    {
+        $connection = OrganizationApiConnection::query()->firstOrCreate(
+            ['organization_id' => $organizationId],
+            [
+                'name' => 'WordPress Bridge (push)',
+                'base_url' => 'push://local',
+                'auth_type' => ApiAuthType::None,
+                'is_active' => true,
+            ]
+        );
+
+        $run = SyncRun::create([
+            'organization_id' => $organizationId,
+            'organization_api_connection_id' => $connection->id,
+            'status' => SyncStatus::Running,
+            'started_at' => now(),
+        ]);
+
+        $mappings = array_merge($this->defaultFieldMappings(), $connection->field_mappings ?? []);
+
+        try {
+            foreach ($records as $record) {
+                if (! is_array($record)) {
+                    continue;
+                }
+                $this->upsertDonorAndDonations($connection, $record, $mappings, $run);
+            }
+
+            $run->update([
+                'status' => SyncStatus::Success,
+                'finished_at' => now(),
+            ]);
+
+            $connection->update([
+                'sync_status' => SyncStatus::Success,
+                'last_synced_at' => now(),
+                'last_error' => null,
+            ]);
+        } catch (Throwable $e) {
+            $run->update([
+                'status' => SyncStatus::Failed,
+                'error_details' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+            throw $e;
+        }
+
+        $run->refresh();
+
+        return [
+            'donors_imported' => (int) $run->donors_imported,
+            'donors_updated' => (int) $run->donors_updated,
+            'donations_imported' => (int) $run->donations_imported,
+            'donations_updated' => (int) $run->donations_updated,
+        ];
+    }
+
+    /**
+     * Pull NGOBuddy Razorpay keys from the Bridge and store them on the organization.
+     *
+     * @return array{ok:bool,message:string,key_id?:string}
+     */
+    public function syncRazorpayCredentials(OrganizationApiConnection $connection): array
+    {
+        $url = rtrim($connection->base_url, '/').'/razorpay/config';
+        $response = $this->signedRequest($connection, 'GET', $url);
+
+        if (! $response->successful()) {
+            return [
+                'ok' => false,
+                'message' => 'Failed to read Razorpay config: HTTP '.$response->status().' '.$response->body(),
+            ];
+        }
+
+        $data = $response->json() ?? [];
+        $keyId = (string) ($data['razorpay_key_id'] ?? '');
+        $keySecret = (string) ($data['razorpay_key_secret'] ?? '');
+
+        if ($keyId === '' || $keySecret === '') {
+            return ['ok' => false, 'message' => 'Bridge did not return Razorpay keys. Configure them in NGOBuddy on the WordPress site.'];
+        }
+
+        $organization = Organization::query()->findOrFail($connection->organization_id);
+        $organization->fill([
+            'razorpay_enabled' => true,
+            'razorpay_key_id' => $keyId,
+            'razorpay_key_secret' => $keySecret,
+        ]);
+
+        if (filled($data['razorpay_webhook_secret'] ?? null)) {
+            $organization->razorpay_webhook_secret = (string) $data['razorpay_webhook_secret'];
+        }
+
+        $organization->save();
+
+        return [
+            'ok' => true,
+            'message' => 'Razorpay credentials synced from WordPress (NGOBuddy). Payment requests can now be triggered from CRM.',
+            'key_id' => $keyId,
+            'mode' => $data['razorpay_mode'] ?? null,
+        ];
+    }
+
+    /**
+     * Ask the WordPress Bridge to create a Razorpay payment link using the site's NGOBuddy keys.
+     *
+     * @return array{ok:bool,short_url?:string,payment_link_id?:string,message?:string,raw?:mixed}
+     */
+    public function createPaymentLinkViaBridge(
+        OrganizationApiConnection $connection,
+        Donor $donor,
+        float $amount,
+        ?string $purpose = null,
+    ): array {
+        $url = rtrim($connection->base_url, '/').'/razorpay/payment-links';
+        $body = json_encode([
+            'amount' => $amount,
+            'currency' => $connection->organization?->currency ?: 'INR',
+            'purpose' => $purpose ?: 'Donation request',
+            'donor_name' => $donor->full_name,
+            'donor_email' => $donor->email,
+            'donor_phone' => $donor->phone,
+            'external_donor_id' => $donor->external_donor_id,
+            'crm_donor_id' => $donor->id,
+            'callback_url' => url('/donors/'.$donor->id),
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->signedRequest($connection, 'POST', $url, [], $body);
+
+        if (! $response->successful()) {
+            return [
+                'ok' => false,
+                'message' => 'Bridge payment link failed: HTTP '.$response->status().' '.$response->body(),
+            ];
+        }
+
+        $data = $response->json() ?? [];
+
+        return [
+            'ok' => true,
+            'short_url' => $data['short_url'] ?? null,
+            'payment_link_id' => $data['payment_link_id'] ?? null,
+            'raw' => $data,
+        ];
+    }
+
+    public function razorpayStatus(OrganizationApiConnection $connection): array
+    {
+        $url = rtrim($connection->base_url, '/').'/razorpay/status';
+        $response = $this->signedRequest($connection, 'GET', $url);
+
+        if (! $response->successful()) {
+            return ['ok' => false, 'message' => 'HTTP '.$response->status(), 'body' => $response->json()];
+        }
+
+        return ['ok' => true, ...(array) $response->json()];
     }
 }

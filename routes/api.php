@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DonorController;
+use App\Http\Controllers\Api\V1\IngestController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')
@@ -10,4 +11,5 @@ Route::prefix('v1')
         Route::get('/donors', [DonorController::class, 'index']);
         Route::post('/donors', [DonorController::class, 'store']);
         Route::get('/donations', [DonationController::class, 'index']);
+        Route::post('/ingest/donors', [IngestController::class, 'donors']);
     });

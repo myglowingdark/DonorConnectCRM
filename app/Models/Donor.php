@@ -66,9 +66,10 @@ class Donor extends Model
 
     public function pendingTransfer(): HasOne
     {
-        return $this->hasOne(DonorTransferRequest::class)
-            ->where('status', 'pending')
-            ->latestOfMany();
+        return $this->hasOne(DonorTransferRequest::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('status', 'pending'),
+        );
     }
 
     public function organization(): BelongsTo
@@ -103,7 +104,11 @@ class Donor extends Model
 
     public function activeAssignment(): HasOne
     {
-        return $this->hasOne(DonorAssignment::class)->where('is_active', true)->latestOfMany();
+        // ofMany with constraint — where()+latestOfMany() returns null when a newer inactive row exists.
+        return $this->hasOne(DonorAssignment::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('is_active', true),
+        );
     }
 
     public function scopeAssignedTo(Builder $query, int $volunteerId): Builder

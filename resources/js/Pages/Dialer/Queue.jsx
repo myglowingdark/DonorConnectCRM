@@ -2,13 +2,24 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import StatusBadge from '@/Components/StatusBadge';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 export default function DialerQueue({ donor, queue_empty }) {
-    const refresh = () => router.get(route('dialer.queue'));
+    const [skipping, setSkipping] = useState(false);
+
+    const refresh = () => router.get(route('dialer.queue'), {}, { preserveScroll: true });
 
     const skip = () => {
-        if (!donor?.id) return;
-        router.post(route('dialer.skip'), { donor_id: donor.id });
+        if (!donor?.id || skipping) return;
+        setSkipping(true);
+        router.post(
+            route('dialer.skip'),
+            { donor_id: donor.id },
+            {
+                preserveScroll: true,
+                onFinish: () => setSkipping(false),
+            },
+        );
     };
 
     return (
@@ -92,9 +103,10 @@ export default function DialerQueue({ donor, queue_empty }) {
                             <button
                                 type="button"
                                 onClick={skip}
-                                className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                                disabled={skipping}
+                                className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold disabled:opacity-50"
                             >
-                                Skip
+                                {skipping ? 'Skipping…' : 'Skip'}
                             </button>
                             <button
                                 type="button"

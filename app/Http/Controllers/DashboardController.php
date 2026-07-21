@@ -50,7 +50,7 @@ class DashboardController extends Controller
         $followUpsDue = (clone $assignedQuery)->followUpDue()->count();
 
         $nextDonor = (clone $assignedQuery)
-            ->callable()
+            ->needsCall()
             ->orderForNextCall()
             ->first();
 
