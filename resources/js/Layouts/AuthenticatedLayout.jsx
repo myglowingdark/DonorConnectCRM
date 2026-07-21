@@ -1,5 +1,6 @@
 import AppSidebar from '@/Components/AppSidebar';
 import FlashToasts from '@/Components/FlashToasts';
+import { formatDate } from '@/lib/format';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -12,13 +13,43 @@ const mobileNav = [
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, currentOrganization, unreadNotificationsCount = 0 } = usePage().props;
+    const {
+        auth,
+        currentOrganization,
+        unreadNotificationsCount = 0,
+        impersonating = false,
+        subscriptionLock,
+    } = usePage().props;
     const [mobileOpen, setMobileOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-background text-on-surface">
             <FlashToasts />
             <AppSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+
+            {impersonating && (
+                <div className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b border-amber-300 bg-amber-100 px-4 py-2 text-sm text-amber-950 lg:pl-[280px]">
+                    <span className="font-medium">You are impersonating {auth.user?.name}.</span>
+                    <Link
+                        href={route('impersonation.leave')}
+                        method="post"
+                        as="button"
+                        className="rounded-lg bg-amber-700 px-3 py-1 text-xs font-semibold text-white"
+                    >
+                        Leave impersonation
+                    </Link>
+                </div>
+            )}
+
+            {subscriptionLock?.soft_locked && !subscriptionLock?.hard_locked && (
+                <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 lg:pl-[280px]">
+                    <span className="font-medium">Subscription attention needed.</span>{' '}
+                    Status: {String(subscriptionLock.subscription_status || 'unknown').replaceAll('_', ' ')}
+                    {subscriptionLock.trial_ends_at && (
+                        <> · Trial ends {formatDate(subscriptionLock.trial_ends_at)}</>
+                    )}
+                </div>
+            )}
 
             <div className="lg:pl-[280px]">
                 <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-outline-variant bg-white/90 px-4 py-3 backdrop-blur md:px-6">

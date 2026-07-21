@@ -8,6 +8,7 @@ use App\Http\Requests\Users\UpdateUserRequest;
 use App\Models\Organization;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\SaaS\EntitlementService;
 use App\Support\Languages;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
@@ -120,6 +121,11 @@ class UserController extends Controller
         $organizationIds = $this->filterOrganizationIds($request->user(), $data['organization_ids']);
 
         abort_if(empty($organizationIds), 422, 'Select at least one organization you can manage.');
+
+        foreach ($organizationIds as $organizationId) {
+            $organization = Organization::query()->findOrFail($organizationId);
+            app(EntitlementService::class)->assertCanCreateSeat($organization);
+        }
 
         $user = User::create([
             'name' => $data['name'],

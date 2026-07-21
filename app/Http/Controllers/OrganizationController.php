@@ -10,6 +10,8 @@ use App\Models\Organization;
 use App\Models\RazorpayPayment;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\SaaS\EntitlementService;
+use App\Services\SaaS\OrgHealthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -89,8 +91,11 @@ class OrganizationController extends Controller
 
     protected function renderProfile(Organization $organization): Response
     {
-        $organization->load(['apiConnection', 'commissionSetting', 'messagingSetting']);
+        $organization->load(['apiConnection', 'commissionSetting', 'messagingSetting', 'plan']);
         $organization->loadCount(['donors', 'users', 'donations']);
+
+        $entitlements = app(EntitlementService::class);
+        $health = app(OrgHealthService::class)->assess($organization);
 
         $volunteers = User::query()
             ->where('role', 'volunteer')
@@ -137,10 +142,19 @@ class OrganizationController extends Controller
                 ->where('donated_at', '>=', now()->startOfMonth())
                 ->sum('amount'),
             'canEdit' => request()->user()?->can('update', $organization) ?? false,
+            'plan' => $organization->plan,
+            'subscription' => [
+                'status' => $organization->subscription_status,
+                'trial_ends_at' => $organization->trial_ends_at?->toIso8601String(),
+            ],
+            'usageMeters' => $organization->usageMeters(),
+            'limits' => $entitlements->limitsFor($organization),
+            'features' => $entitlements->featuresFor($organization),
+            'health' => $health,
         ]);
     }
 
-    public function updateRazorpay(Request $request, Organization $organization): RedirectResponse
+    public function updateRazorpay(Request $request, Organization $organization, AuditLogger $auditLogger): RedirectResponse
     {
         $this->authorize('update', $organization);
 
@@ -158,11 +172,26 @@ class OrganizationController extends Controller
             unset($data['razorpay_webhook_secret']);
         }
 
+        $old = $organization->only([
+            'razorpay_enabled', 'razorpay_key_id', 'razorpay_key_secret', 'razorpay_webhook_secret',
+        ]);
+
         $organization->fill([
             ...$data,
             'razorpay_enabled' => $request->boolean('razorpay_enabled'),
         ]);
         $organization->save();
+
+        $auditLogger->log(
+            'organization.razorpay_updated',
+            $organization,
+            $old,
+            $organization->only([
+                'razorpay_enabled', 'razorpay_key_id', 'razorpay_key_secret', 'razorpay_webhook_secret',
+            ]),
+            $organization->id,
+            $request->user(),
+        );
 
         return back()->with('success', 'Razorpay settings saved.');
     }

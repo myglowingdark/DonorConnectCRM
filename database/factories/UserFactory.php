@@ -31,7 +31,10 @@ class UserFactory extends Factory
 
     public function superAdmin(): static
     {
-        return $this->state(fn () => ['role' => UserRole::SuperAdmin]);
+        return $this->state(fn () => [
+            'role' => UserRole::SuperAdmin,
+            'two_factor_confirmed_at' => now(),
+        ]);
     }
 
     public function orgAdmin(): static

@@ -9,6 +9,7 @@ use App\Models\DonorInteraction;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Commissions\AttributionService;
+use App\Services\SaaS\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,6 +18,7 @@ class InteractionService
     public function __construct(
         private AuditLogger $auditLogger,
         private AttributionService $attributionService,
+        private WebhookDispatcher $webhookDispatcher,
     ) {}
 
     /**
@@ -93,6 +95,18 @@ class InteractionService
                 $donor->organization_id,
                 $volunteer,
             );
+
+            if ($outcome === CallOutcome::Pledged) {
+                $organization = \App\Models\Organization::query()->find($donor->organization_id);
+                if ($organization) {
+                    $this->webhookDispatcher->dispatch($organization, 'pledge.made', [
+                        'donor_id' => $donor->id,
+                        'interaction_id' => $interaction->id,
+                        'pledged_amount' => $interaction->pledged_amount,
+                        'volunteer_id' => $volunteer->id,
+                    ]);
+                }
+            }
 
             return $interaction->fresh(['volunteer', 'donor']);
         });

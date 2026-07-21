@@ -16,7 +16,9 @@ export default function DonorShow({
     messagingChannels = [],
     messageTemplates = [],
 }) {
-    const { auth } = usePage().props;
+    const { auth, features = [], flash } = usePage().props;
+    const hasRazorpay = features.includes('razorpay');
+    const paymentLinkForm = useForm({ amount: '' });
     const [showTransfer, setShowTransfer] = useState(false);
     const { data, setData, post, processing, errors, reset, transform } = useForm({
         outcome: 'interested',
@@ -188,6 +190,55 @@ export default function DonorShow({
 
             <div className="grid gap-6 xl:grid-cols-3">
                 <div className="space-y-6 xl:col-span-2">
+                    {hasRazorpay && (
+                        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                            <h3 className="mb-1 font-semibold">Send payment link</h3>
+                            <p className="mb-4 text-xs text-on-surface-variant">
+                                Create a Razorpay payment link for this donor. Leave amount blank to use the latest pledge.
+                            </p>
+                            {flash?.success && (
+                                <p className="mb-3 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800">
+                                    {flash.success}
+                                </p>
+                            )}
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    paymentLinkForm.post(route('donors.payment-link', donor.id), {
+                                        preserveScroll: true,
+                                    });
+                                }}
+                                className="flex flex-col gap-3 sm:flex-row sm:items-end"
+                            >
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold text-on-surface-variant">
+                                        Amount (₹, optional)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="mt-1 w-full rounded-xl border-slate-200"
+                                        placeholder="Uses pledge amount if empty"
+                                        value={paymentLinkForm.data.amount}
+                                        onChange={(e) => paymentLinkForm.setData('amount', e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={paymentLinkForm.processing}
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Send payment link
+                                </button>
+                            </form>
+                            {Object.values(paymentLinkForm.errors).map((err) => (
+                                <p key={err} className="mt-2 text-xs text-error">
+                                    {err}
+                                </p>
+                            ))}
+                        </section>
+                    )}
+
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                         <h3 className="mb-1 font-semibold">Send message</h3>
                         <p className="mb-4 text-xs text-on-surface-variant">

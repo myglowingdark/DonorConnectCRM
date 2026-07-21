@@ -60,6 +60,7 @@ class DonorImportService
         }
 
         $organization = Organization::query()->findOrFail($organizationId);
+        app(\App\Services\SaaS\EntitlementService::class)->assertCanCreateImport($organization);
         $campaignId = $this->resolveCampaignId($organizationId, $options);
 
         $created = 0;

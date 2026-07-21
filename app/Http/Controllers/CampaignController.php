@@ -7,6 +7,7 @@ use App\Models\Donation;
 use App\Models\Donor;
 use App\Models\DonorInteraction;
 use App\Models\Organization;
+use App\Services\SaaS\EntitlementService;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -156,7 +157,10 @@ class CampaignController extends Controller
 
         $orgId = OrganizationContext::id();
         abort_unless($orgId, 403);
-        $this->authorize('assignDonors', Organization::findOrFail($orgId));
+        $organization = Organization::findOrFail($orgId);
+        $this->authorize('assignDonors', $organization);
+
+        app(EntitlementService::class)->assertCanCreateCampaign($organization);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],

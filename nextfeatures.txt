@@ -39,21 +39,21 @@ smtp / org wise smtp /
 and also see the revenew , donations, report , converstion rate as per caming and other relevent stats as well
 
 
-impliment -- 1. Tenant commercial layer (must-have for SaaS)
+[tested] 1. Tenant commercial layer (must-have for SaaS)
 Plans & billing — Free / Growth / Enterprise; seats, donor limit, campaign limit, WhatsApp volume, DonorConnect telecaller hours
 Subscription status — trial, active, past_due, suspended; soft-lock vs hard-lock UX
 Usage metering — donors stored, calls logged, messages sent, imports/month; show meters on Org profile
 Invoices & Razorpay subscriptions for the platform fee (separate from donor Razorpay)
 
-implimenet - 2. Hard multi-tenant isolation & trust
+[tested] 2. Hard multi-tenant isolation & trust
 Audit trail UI — you already have audit_logs; expose who changed commissions, imports, handovers, Razorpay keys
 Impersonation (Super Admin) — “Login as Org Admin” with banner + audit
 Role matrix — custom roles (Team Lead, Finance, Viewer) beyond 3 fixed roles
-2FA / SSO — Google/Microsoft for org admins; enforce 2FA on Super Admin
+2FA — enforce 2FA on Super Admin (authenticator TOTP). SSO Google/Microsoft deferred (needs Socialite package)
 Data export & delete (GDPR-style) — org can export donors/calls; Super Admin can offboard a tenant
 
-impliment - 3. Product packaging that sells
-White-label — custom domain, logo, colors, email from-name per org (partially started)
+[tested] 3. Product packaging that sells
+White-label — custom domain, logo, colors, email from-name per org
 Feature flags per plan — hide Razorpay / WhatsApp / internal telecallers if not entitled
 Self-serve onboarding — invite link, sample import, checklist (“add volunteers → import → first call”)
 Org health score — unassigned leads, stale follow-ups, SMTP failing, Razorpay off
@@ -65,31 +65,31 @@ Script & objection library per campaign/language
 Pledge → payment pipeline — Razorpay payment links from call outcome, expiry reminders
 Recurring / pledge follow-up schedules (auto tasks)
 
-impliment -5. Platform telecaller marketplace (your unique model)
+[tested] 5. Platform telecaller marketplace (your unique model)
 SLA & capacity booking — org books N DonorConnect seats for a campaign window
 Rate cards + margin dashboard — org “service fee” vs what you pay telecallers (you already split rates; make P&L visible to Super Admin)
 Quality & dispute — org rates calls; Super Admin adjusts commission holds
 Cross-org idle pool — reassign idle DonorConnect telecallers with clear conflict rules
 
-6. Reliability & ops (SaaS hygiene)
+dont impliment now- 6. Reliability & ops (SaaS hygiene)
 Queues everywhere — imports, WhatsApp, email reports, webhooks (don’t block HTTP)
 Dead-letter + retry UI for failed messages/webhooks/syncs
 Per-tenant status page — SMTP, WhatsApp, Razorpay, last sync
 Backups & PITR story — org-level restore of last import (soft delete / undo)
-7. APIs & integrations
+
+[tested] 7. APIs & integrations
 Public REST API + API keys scoped to org (donors, donations, webhooks out)
 Zapier/Make webhooks — donation.created, lead.assigned, pledge.made
-CRM sync — Salesforce/HubSpot/Google Sheets (you have API sync; productize connectors)
-8. Insights that CFOs care about
+CRM sync — existing WordPress/API sync productized in Sync settings (Salesforce/HubSpot connectors deferred)
+
+[tested] 8. Insights that CFOs care about
 Cohort & campaign ROI — cost (commission + messages) vs revenue
 Volunteer leaderboards with fairness — by language, attempt quality, not only amount
 Forecast — pledged vs collected, aging pledges
 Consolidated Super Admin BI — MRR, churn risk, top orgs, telecaller utilization
-Highest ROI order for DonorConnect as SaaS
 
-Plans + usage limits + trial lock
-Audit + impersonation
-Payment-link from pledge + queue dialer
-Platform telecaller capacity booking / margin view
-Public API + webhooks
-If you want, I can turn the top 5 into a prioritized nextfeatures.txt backlog with MVP scopes you can ship sprint-by-sprint.
+[tested] Plans + usage limits + trial lock
+[tested] Audit + impersonation
+[tested] Payment-link from pledge + queue dialer
+[tested] Platform telecaller capacity booking / margin view
+[tested] Public API + webhooks

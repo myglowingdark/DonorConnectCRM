@@ -11,6 +11,7 @@ use App\Models\Donor;
 use App\Models\DonorAssignment;
 use App\Models\DonorInteraction;
 use App\Models\Organization;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(PlanSeeder::class);
+
+        $freePlan = Plan::query()->where('code', 'free')->first();
+
         $hope = Organization::create([
             'name' => 'Hope Foundation',
             'slug' => 'hope-foundation',
@@ -26,6 +31,9 @@ class DatabaseSeeder extends Seeder
             'timezone' => 'Asia/Kolkata',
             'currency' => 'INR',
             'is_active' => true,
+            'plan_id' => $freePlan?->id,
+            'subscription_status' => 'trial',
+            'trial_ends_at' => now()->addDays(30),
         ]);
 
         $seva = Organization::create([
@@ -35,6 +43,9 @@ class DatabaseSeeder extends Seeder
             'timezone' => 'Asia/Kolkata',
             'currency' => 'INR',
             'is_active' => true,
+            'plan_id' => $freePlan?->id,
+            'subscription_status' => 'trial',
+            'trial_ends_at' => now()->addDays(30),
         ]);
 
         $green = Organization::create([
@@ -44,6 +55,9 @@ class DatabaseSeeder extends Seeder
             'timezone' => 'Asia/Kolkata',
             'currency' => 'INR',
             'is_active' => true,
+            'plan_id' => $freePlan?->id,
+            'subscription_status' => 'trial',
+            'trial_ends_at' => now()->addDays(30),
         ]);
 
         $superAdmin = User::create([

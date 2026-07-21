@@ -7,12 +7,15 @@ use App\Models\Donor;
 use App\Models\Organization;
 use App\Models\RazorpayPayment;
 use App\Models\User;
+use App\Services\SaaS\WebhookDispatcher;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class RazorpayService
 {
+    public function __construct(private WebhookDispatcher $webhookDispatcher) {}
+
     public function createOrder(Organization $organization, Donor $donor, User $actor, float $amount, ?string $purpose = null): array
     {
         if (! $organization->razorpay_enabled || blank($organization->razorpay_key_id) || blank($organization->razorpay_key_secret)) {
@@ -74,6 +77,84 @@ class RazorpayService
         ];
     }
 
+    public function createPaymentLink(
+        Organization $organization,
+        Donor $donor,
+        float $amount,
+        ?string $purpose = null,
+        ?string $callback = null,
+    ): array {
+        if (! $organization->razorpay_enabled || blank($organization->razorpay_key_id) || blank($organization->razorpay_key_secret)) {
+            throw ValidationException::withMessages([
+                'razorpay' => 'Razorpay is not configured for this organization.',
+            ]);
+        }
+
+        if ($amount < 1) {
+            throw ValidationException::withMessages([
+                'amount' => 'Amount must be at least ₹1.',
+            ]);
+        }
+
+        $amountPaise = (int) round($amount * 100);
+        $purpose = $purpose ?: 'donation';
+
+        $payload = [
+            'amount' => $amountPaise,
+            'currency' => $organization->currency ?: 'INR',
+            'description' => $purpose,
+            'customer' => array_filter([
+                'name' => $donor->full_name,
+                'email' => $donor->email,
+                'contact' => $donor->phone,
+            ]),
+            'notify' => [
+                'sms' => filled($donor->phone),
+                'email' => filled($donor->email),
+            ],
+            'notes' => [
+                'organization_id' => $organization->id,
+                'donor_id' => $donor->id,
+                'purpose' => $purpose,
+            ],
+        ];
+
+        if ($callback) {
+            $payload['callback_url'] = $callback;
+            $payload['callback_method'] = 'get';
+        }
+
+        $response = Http::withBasicAuth($organization->razorpay_key_id, $organization->razorpay_key_secret)
+            ->post('https://api.razorpay.com/v1/payment_links', $payload);
+
+        if (! $response->successful()) {
+            throw ValidationException::withMessages([
+                'razorpay' => 'Razorpay payment link failed: '.($response->json('error.description') ?? $response->body()),
+            ]);
+        }
+
+        $link = $response->json();
+
+        $payment = RazorpayPayment::create([
+            'organization_id' => $organization->id,
+            'donor_id' => $donor->id,
+            'razorpay_order_id' => $link['id'] ?? null,
+            'amount' => $amount,
+            'currency' => $organization->currency ?: 'INR',
+            'status' => 'created',
+            'purpose' => $purpose,
+            'payload' => $link,
+        ]);
+
+        return [
+            'payment' => $payment,
+            'payment_link_id' => $link['id'] ?? null,
+            'short_url' => $link['short_url'] ?? null,
+            'amount' => $amountPaise,
+            'currency' => $link['currency'] ?? 'INR',
+        ];
+    }
+
     public function markPaidFromWebhook(Organization $organization, array $payload): ?RazorpayPayment
     {
         $paymentEntity = data_get($payload, 'payload.payment.entity', []);
@@ -109,6 +190,13 @@ class RazorpayService
                 'payment_status' => 'completed',
                 'payment_method' => 'razorpay',
                 'source_data' => $paymentEntity,
+            ]);
+
+            $this->webhookDispatcher->dispatch($organization, 'donation.created', [
+                'donation_id' => $donation->id,
+                'donor_id' => $donation->donor_id,
+                'amount' => (float) $donation->amount,
+                'currency' => $donation->currency,
             ]);
 
             $donor = Donor::query()->find($payment->donor_id);

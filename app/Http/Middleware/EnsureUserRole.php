@@ -18,12 +18,39 @@ class EnsureUserRole
             abort(403);
         }
 
-        $allowed = collect($roles)->map(fn (string $role) => UserRole::from($role));
+        $expanded = collect($roles)
+            ->flatMap(fn (string $role) => $this->expandRoleAlias($role))
+            ->unique()
+            ->values();
+
+        $allowed = $expanded
+            ->map(fn (string $role) => UserRole::from($role));
 
         if (! $allowed->contains($user->role)) {
             abort(403, 'You do not have permission to access this resource.');
         }
 
         return $next($request);
+    }
+
+    /** @return list<string> */
+    protected function expandRoleAlias(string $role): array
+    {
+        return match ($role) {
+            'admin' => [
+                UserRole::SuperAdmin->value,
+                UserRole::OrganizationAdmin->value,
+                UserRole::TeamLead->value,
+                UserRole::Finance->value,
+            ],
+            'staff' => [
+                UserRole::SuperAdmin->value,
+                UserRole::OrganizationAdmin->value,
+                UserRole::TeamLead->value,
+                UserRole::Finance->value,
+                UserRole::Viewer->value,
+            ],
+            default => [$role],
+        };
     }
 }

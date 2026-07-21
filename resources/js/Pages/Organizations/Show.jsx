@@ -2,6 +2,29 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatINR, formatDateTime } from '@/lib/format';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
+function UsageBar({ label, used, limit }) {
+    const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    const unlimited = limit === null || limit === undefined;
+
+    return (
+        <div>
+            <div className="mb-1 flex items-center justify-between text-sm">
+                <span className="font-medium">{label}</span>
+                <span className="tabular-nums text-on-surface-variant">
+                    {used ?? 0}
+                    {unlimited ? '' : ` / ${limit}`}
+                </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-container">
+                <div
+                    className={`h-full rounded-full ${pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-amber-500' : 'bg-secondary'}`}
+                    style={{ width: unlimited ? '0%' : `${pct}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
 export default function OrganizationShow({
     organization,
     volunteers,
@@ -10,6 +33,11 @@ export default function OrganizationShow({
     latestCycle,
     monthCollection,
     canEdit,
+    plan,
+    subscription,
+    usageMeters,
+    limits,
+    health,
 }) {
     const { appBrand = 'DonorConnect' } = usePage().props;
     const razorpayForm = useForm({
@@ -75,6 +103,87 @@ export default function OrganizationShow({
                     </div>
                 ))}
             </div>
+
+            {(plan || subscription || usageMeters) && (
+                <div className="mb-6 grid gap-6 xl:grid-cols-2">
+                    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                        <h3 className="mb-3 font-semibold">Plan & subscription</h3>
+                        <p className="text-sm">
+                            <span className="text-on-surface-variant">Plan: </span>
+                            <span className="font-medium">{plan?.name || 'None'}</span>
+                        </p>
+                        <p className="mt-2 text-sm capitalize">
+                            <span className="text-on-surface-variant">Status: </span>
+                            {String(subscription?.status || 'unknown').replaceAll('_', ' ')}
+                        </p>
+                        {subscription?.trial_ends_at && (
+                            <p className="mt-2 text-sm">
+                                <span className="text-on-surface-variant">Trial ends: </span>
+                                {formatDateTime(subscription.trial_ends_at)}
+                            </p>
+                        )}
+                    </section>
+
+                    {usageMeters && limits && (
+                        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                            <h3 className="mb-4 font-semibold">Usage meters</h3>
+                            <div className="grid gap-3">
+                                <UsageBar label="Donors" used={usageMeters.donors} limit={limits.donors} />
+                                <UsageBar label="Seats" used={usageMeters.seats_used} limit={limits.seats} />
+                                <UsageBar
+                                    label="Imports (month)"
+                                    used={usageMeters.imports_this_month}
+                                    limit={limits.imports_monthly}
+                                />
+                            </div>
+                        </section>
+                    )}
+
+                    {health && (
+                        <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card xl:col-span-2">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h3 className="font-semibold">Health score</h3>
+                                <span
+                                    className={`text-2xl font-bold tabular-nums ${
+                                        health.score >= 80
+                                            ? 'text-green-700'
+                                            : health.score >= 50
+                                              ? 'text-amber-600'
+                                              : 'text-error'
+                                    }`}
+                                >
+                                    {health.score}/100
+                                </span>
+                            </div>
+                            {!health.issues?.length ? (
+                                <p className="text-sm text-on-surface-variant">No issues detected.</p>
+                            ) : (
+                                <ul className="space-y-2 text-sm">
+                                    {health.issues.map((issue) => (
+                                        <li
+                                            key={issue.code}
+                                            className="flex items-start gap-2 rounded-xl border border-slate-100 px-3 py-2"
+                                        >
+                                            <span
+                                                className={`material-symbols-outlined text-[18px] ${
+                                                    issue.severity === 'high'
+                                                        ? 'text-error'
+                                                        : issue.severity === 'medium'
+                                                          ? 'text-amber-600'
+                                                          : 'text-on-surface-variant'
+                                                }`}
+                                            >
+                                                {issue.severity === 'high' ? 'error' : 'info'}
+                                            </span>
+                                            <span>{issue.message}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+                    )}
+                </div>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-2">
                 <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">

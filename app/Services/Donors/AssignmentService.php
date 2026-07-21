@@ -7,6 +7,7 @@ use App\Models\DonorAssignment;
 use App\Models\User;
 use App\Notifications\DonorAssignedNotification;
 use App\Services\AuditLogger;
+use App\Services\SaaS\WebhookDispatcher;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -14,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class AssignmentService
 {
-    public function __construct(private AuditLogger $auditLogger) {}
+    public function __construct(
+        private AuditLogger $auditLogger,
+        private WebhookDispatcher $webhookDispatcher,
+    ) {}
 
     /**
      * @param  array<int>  $donorIds
@@ -76,6 +80,15 @@ class AssignmentService
                     $organizationId,
                     $actor,
                 );
+
+                $organization = \App\Models\Organization::query()->find($organizationId);
+                if ($organization) {
+                    $this->webhookDispatcher->dispatch($organization, 'lead.assigned', [
+                        'donor_id' => $donor->id,
+                        'volunteer_id' => $volunteerId,
+                        'assigned_by' => $actor->id,
+                    ]);
+                }
 
                 $count++;
             }

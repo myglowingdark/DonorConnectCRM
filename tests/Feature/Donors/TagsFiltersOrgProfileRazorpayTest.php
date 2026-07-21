@@ -97,6 +97,7 @@ class TagsFiltersOrgProfileRazorpayTest extends TestCase
             'razorpay_key_id' => 'rzp_test_key',
             'razorpay_key_secret' => 'rzp_test_secret',
             'razorpay_webhook_secret' => 'whsec_test',
+            'feature_overrides' => ['razorpay' => true],
         ]);
         $admin = User::factory()->orgAdmin()->create();
         $admin->organizations()->attach($org->id, ['is_active' => true]);

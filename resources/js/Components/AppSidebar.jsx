@@ -4,6 +4,7 @@ import OrgSwitcher from './OrgSwitcher';
 
 const volunteerNav = [
     { href: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { href: 'dialer.queue', label: 'Call queue', icon: 'queue' },
     { href: 'donors.index', label: 'Donors', icon: 'groups' },
     { href: 'transfers.index', label: 'Transfers', icon: 'swap_horiz' },
     { href: 'commissions.mine', label: 'Earnings', icon: 'payments' },
@@ -29,6 +30,7 @@ const adminNav = [
         children: [
             { href: 'users.index', label: 'Volunteers', icon: 'volunteer_activism' },
             { href: 'organization.profile', label: 'Org profile', icon: 'apartment' },
+            { href: 'onboarding.show', label: 'Onboarding', icon: 'checklist' },
         ],
     },
     {
@@ -54,7 +56,19 @@ const adminNav = [
         children: [
             { href: 'reports.index', label: 'Reports', icon: 'analytics' },
             { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
+            { href: 'insights.index', label: 'ROI & forecast', icon: 'insights' },
+            { href: 'audit.index', label: 'Audit log', icon: 'history' },
             { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
+        ],
+    },
+    {
+        label: 'Platform',
+        icon: 'settings',
+        children: [
+            { href: 'billing.index', label: 'Billing', icon: 'receipt_long' },
+            { href: 'api-tokens.index', label: 'API keys', icon: 'key', feature: 'api' },
+            { href: 'webhooks.index', label: 'Webhooks', icon: 'webhook', feature: 'webhooks' },
+            { href: 'capacity.index', label: 'Capacity', icon: 'event_seat', feature: 'capacity_booking' },
         ],
     },
     { href: 'notifications.index', label: 'Alerts', icon: 'notifications' },
@@ -68,6 +82,8 @@ const superAdminNav = [
         children: [
             { href: 'organizations.index', label: 'All organizations', icon: 'apartment' },
             { href: 'users.index', label: 'Users', icon: 'manage_accounts' },
+            { href: 'margin.index', label: 'Margin dashboard', icon: 'account_balance' },
+            { href: 'idle-pool.index', label: 'Idle telecallers', icon: 'groups_3' },
             { href: 'platform.messaging.edit', label: 'Platform SMTP', icon: 'mail' },
         ],
     },
@@ -105,11 +121,37 @@ const superAdminNav = [
         children: [
             { href: 'reports.index', label: 'Reports', icon: 'analytics' },
             { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
+            { href: 'insights.index', label: 'ROI & forecast', icon: 'insights' },
+            { href: 'audit.index', label: 'Audit log', icon: 'history' },
             { href: 'sync.edit', label: 'API Sync', icon: 'sync' },
+        ],
+    },
+    {
+        label: 'Platform',
+        icon: 'settings',
+        children: [
+            { href: 'billing.index', label: 'Billing', icon: 'receipt_long' },
+            { href: 'api-tokens.index', label: 'API keys', icon: 'key', feature: 'api' },
+            { href: 'webhooks.index', label: 'Webhooks', icon: 'webhook', feature: 'webhooks' },
+            { href: 'capacity.index', label: 'Capacity', icon: 'event_seat', feature: 'capacity_booking' },
         ],
     },
     { href: 'notifications.index', label: 'Alerts', icon: 'notifications' },
 ];
+
+function filterNavByFeatures(items, features = []) {
+    return items
+        .map((item) => {
+            if (item.children) {
+                const children = filterNavByFeatures(item.children, features);
+                if (children.length === 0) return null;
+                return { ...item, children };
+            }
+            if (item.feature && !features.includes(item.feature)) return null;
+            return item;
+        })
+        .filter(Boolean);
+}
 
 function safeRoute(name) {
     try {
@@ -178,14 +220,16 @@ function NavItem({ item, onClose }) {
 }
 
 export default function AppSidebar({ mobileOpen = false, onClose }) {
-    const { auth, currentOrganization } = usePage().props;
+    const { auth, currentOrganization, features = [], impersonating } = usePage().props;
     const role = auth.user?.role;
 
     const links = useMemo(() => {
-        if (role === 'super_admin') return superAdminNav;
-        if (role === 'organization_admin') return adminNav;
-        return volunteerNav;
-    }, [role]);
+        let nav = volunteerNav;
+        if (role === 'super_admin') nav = superAdminNav;
+        else if (role === 'organization_admin') nav = adminNav;
+        if (role === 'super_admin') return nav;
+        return filterNavByFeatures(nav, features);
+    }, [role, features]);
 
     return (
         <>
@@ -217,6 +261,11 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
                         <p className="mt-3 truncate text-xs text-on-surface-variant">
                             Viewing: <span className="font-semibold text-primary">{currentOrganization.name}</span>
                         </p>
+                    )}
+                    {impersonating && (
+                        <div className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900">
+                            Impersonation active
+                        </div>
                     )}
                 </div>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Support\OrganizationContext;
+use App\Services\SaaS\EntitlementService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -63,6 +64,27 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        $subscriptionLock = null;
+        $features = [];
+        $entitlements = null;
+        $impersonating = (bool) $request->session()->has('impersonator_id');
+
+        if ($user && $org) {
+            $entitlementService = app(EntitlementService::class);
+            $features = $entitlementService->featuresFor($org);
+            $entitlements = [
+                'limits' => $entitlementService->limitsFor($org),
+                'features' => $features,
+            ];
+
+            $subscriptionLock = [
+                'hard_locked' => $org->isHardLocked(),
+                'soft_locked' => $org->isSubscriptionLocked(),
+                'subscription_status' => $org->subscription_status,
+                'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
+            ];
+        }
+
         return array_merge(parent::share($request), [
             'appName' => $appName,
             'appBrand' => $appBrand,
@@ -77,6 +99,10 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
             ],
+            'subscriptionLock' => $subscriptionLock,
+            'features' => $features,
+            'entitlements' => $entitlements,
+            'impersonating' => $impersonating,
         ]);
     }
 }

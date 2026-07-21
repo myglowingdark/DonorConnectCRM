@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'languages', 'is_active', 'is_internal_telecaller'])]
-#[Hidden(['password', 'remember_token'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'languages', 'is_active', 'is_internal_telecaller', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -28,6 +28,9 @@ class User extends Authenticatable
             'languages' => 'array',
             'is_active' => 'boolean',
             'is_internal_telecaller' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -63,6 +66,21 @@ class User extends Authenticatable
         return $this->role === UserRole::OrganizationAdmin;
     }
 
+    public function isTeamLead(): bool
+    {
+        return $this->role === UserRole::TeamLead;
+    }
+
+    public function isFinance(): bool
+    {
+        return $this->role === UserRole::Finance;
+    }
+
+    public function isViewer(): bool
+    {
+        return $this->role === UserRole::Viewer;
+    }
+
     public function isVolunteer(): bool
     {
         return $this->role === UserRole::Volunteer;
@@ -76,6 +94,11 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role?->isAdmin() ?? false;
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->isAdmin() || $this->isVolunteer() || $this->isViewer();
     }
 
     public function belongsToOrganization(int $organizationId): bool
