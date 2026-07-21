@@ -4,6 +4,7 @@
 .env.backup
 .env.production
 creds
+/scripts/prod-ssh.env
 .phpactor.json
 .phpunit.result.cache
 /.codex
