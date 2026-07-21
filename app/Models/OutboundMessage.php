@@ -24,6 +24,8 @@ class OutboundMessage extends Model
         'body',
         'status',
         'error_message',
+        'provider_message_id',
+        'provider_payload',
         'sent_at',
     ];
 
@@ -32,6 +34,7 @@ class OutboundMessage extends Model
         return [
             'channel' => MessageChannel::class,
             'status' => MessageStatus::class,
+            'provider_payload' => 'array',
             'sent_at' => 'datetime',
         ];
     }

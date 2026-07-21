@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CallOutcome;
 use App\Enums\DonorStatus;
 use App\Enums\MessageChannel;
+use App\Enums\MetaTemplateStatus;
 use App\Enums\TransferStatus;
 use App\Http\Requests\Donors\LogCallRequest;
 use App\Models\Campaign;
@@ -12,9 +13,11 @@ use App\Models\Donor;
 use App\Models\DonorInteraction;
 use App\Models\DonorTransferRequest;
 use App\Models\MessageTemplate;
+use App\Models\Organization;
 use App\Models\User;
 use App\Services\Donors\InteractionService;
 use App\Services\Messaging\MessageService;
+use App\Services\SaaS\EntitlementService;
 use App\Support\Languages;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
@@ -248,10 +251,13 @@ class DonorController extends Controller
             || $donor->activeAssignment?->volunteer_id === $request->user()->id;
 
         $messagingSettings = app(MessageService::class)->settingsFor($donor->organization_id);
+        $organization = Organization::query()->findOrFail($donor->organization_id);
+        $hasWhatsApp = app(EntitlementService::class)->hasFeature($organization, 'whatsapp');
+
         $enabledChannels = collect(MessageChannel::cases())
             ->filter(fn (MessageChannel $channel) => match ($channel) {
                 MessageChannel::Email => $messagingSettings->email_enabled,
-                MessageChannel::WhatsApp => $messagingSettings->whatsapp_enabled,
+                MessageChannel::WhatsApp => $messagingSettings->whatsapp_enabled && $hasWhatsApp,
                 MessageChannel::Sms => $messagingSettings->sms_enabled,
             })
             ->map(fn (MessageChannel $c) => [
@@ -263,8 +269,43 @@ class DonorController extends Controller
         $messageTemplates = MessageTemplate::query()
             ->forOrganization($donor->organization_id)
             ->where('is_active', true)
+            ->where(function ($query) {
+                $query->where('channel', '!=', MessageChannel::WhatsApp->value)
+                    ->orWhere(function ($whatsapp) {
+                        $whatsapp->where('channel', MessageChannel::WhatsApp->value)
+                            ->where('meta_status', MetaTemplateStatus::Approved->value);
+                    });
+            })
             ->orderBy('name')
-            ->get(['id', 'name', 'channel', 'subject', 'body']);
+            ->get(['id', 'name', 'channel', 'subject', 'body', 'meta_status', 'meta_name', 'meta_language']);
+
+        $trackingLinks = app(\App\Services\Tracking\TrackingLinkService::class)
+            ->visibleLinksFor($donor, $request->user())
+            ->map(function ($link) {
+                return [
+                    'id' => $link->id,
+                    'code' => $link->code,
+                    'url' => $link->publicUrl(),
+                    'target_url' => $link->target_url,
+                    'channel' => $link->channel,
+                    'open_count' => $link->open_count,
+                    'last_opened_at' => optional($link->last_opened_at)?->toIso8601String(),
+                    'last_sent_at' => optional($link->last_sent_at)?->toIso8601String(),
+                    'volunteer' => $link->volunteer ? [
+                        'id' => $link->volunteer->id,
+                        'name' => $link->volunteer->name,
+                    ] : null,
+                    'events' => $link->events->map(fn ($event) => [
+                        'id' => $event->id,
+                        'event_type' => $event->event_type instanceof \BackedEnum ? $event->event_type->value : $event->event_type,
+                        'page_url' => $event->page_url,
+                        'project_id' => $event->project_id,
+                        'amount' => $event->amount,
+                        'occurred_at' => optional($event->occurred_at)?->toIso8601String(),
+                    ])->values(),
+                ];
+            })
+            ->values();
 
         return Inertia::render('Donors/Show', [
             'donor' => $donor,
@@ -281,6 +322,9 @@ class DonorController extends Controller
             'canTransfer' => $canTransfer,
             'messagingChannels' => $enabledChannels,
             'messageTemplates' => $messageTemplates,
+            'hasWhatsAppFeature' => $hasWhatsApp,
+            'trackingLinks' => $trackingLinks,
+            'attributionWindowDays' => (int) ($organization->attribution_window_days ?: 3),
         ]);
     }
 

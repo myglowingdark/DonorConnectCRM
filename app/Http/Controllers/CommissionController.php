@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Http\Requests\Commissions\UpdateCommissionSettingsRequest;
 use App\Models\CommissionSetting;
+use App\Models\PlatformCommissionSetting;
 use App\Models\User;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
@@ -22,19 +23,7 @@ class CommissionController extends Controller
 
         $settings = CommissionSetting::query()->firstOrCreate(
             ['organization_id' => $orgId],
-            [
-                'individual_enabled' => true,
-                'individual_default_percent' => 5,
-                'shared_enabled' => false,
-                'shared_percent' => 0,
-                'shared_eligibility' => 'active_contributors',
-                'volunteer_overrides' => [],
-                'internal_individual_enabled' => true,
-                'internal_individual_default_percent' => 5,
-                'internal_shared_enabled' => true,
-                'internal_shared_percent' => 0,
-                'internal_volunteer_overrides' => [],
-            ]
+            PlatformCommissionSetting::current()->defaultsForOrganization()
         );
 
         $allVolunteers = User::query()

@@ -11,6 +11,7 @@ export default function OrganizationForm({ organization }) {
         currency: organization?.currency || 'INR',
         is_active: organization?.is_active ?? true,
         donors_limit: organization?.donors_limit ?? '',
+        attribution_window_days: organization?.attribution_window_days ?? 3,
         logo: null,
     });
 
@@ -64,6 +65,21 @@ export default function OrganizationForm({ organization }) {
                         Leave blank for unlimited. Enforced on CSV import and WordPress sync creates.
                     </p>
                     {errors.donors_limit && <p className="text-xs text-error">{errors.donors_limit}</p>}
+                </div>
+                <div>
+                    <label className="text-xs font-semibold">Link attribution window (days)</label>
+                    <input
+                        type="number"
+                        min="1"
+                        max="90"
+                        className="mt-1 w-full rounded-xl border-slate-200"
+                        value={data.attribution_window_days}
+                        onChange={(e) => setData('attribution_window_days', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                        Donations count for a telecaller if the donor last opened their tracking link within this many days.
+                    </p>
+                    {errors.attribution_window_days && <p className="text-xs text-error">{errors.attribution_window_days}</p>}
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />

@@ -8,6 +8,7 @@ use App\Models\CommissionCycle;
 use App\Models\CommissionLineItem;
 use App\Models\CommissionSetting;
 use App\Models\DonationAttribution;
+use App\Models\PlatformCommissionSetting;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
@@ -22,19 +23,7 @@ class CommissionService
     {
         return CommissionSetting::query()->firstOrCreate(
             ['organization_id' => $organizationId],
-            [
-                'individual_enabled' => true,
-                'individual_default_percent' => 5,
-                'shared_enabled' => false,
-                'shared_percent' => 0,
-                'shared_eligibility' => 'active_contributors',
-                'volunteer_overrides' => [],
-                'internal_individual_enabled' => true,
-                'internal_individual_default_percent' => 5,
-                'internal_shared_enabled' => true,
-                'internal_shared_percent' => 0,
-                'internal_volunteer_overrides' => [],
-            ]
+            PlatformCommissionSetting::current()->defaultsForOrganization()
         );
     }
 

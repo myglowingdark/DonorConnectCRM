@@ -15,11 +15,15 @@ export default function DonorShow({
     canTransfer = false,
     messagingChannels = [],
     messageTemplates = [],
+    hasWhatsAppFeature = false,
+    trackingLinks = [],
+    attributionWindowDays = 3,
 }) {
     const { auth, features = [], flash } = usePage().props;
     const hasRazorpay = features.includes('razorpay');
     const paymentLinkForm = useForm({ amount: '', via: 'auto' });
     const [showTransfer, setShowTransfer] = useState(false);
+    const [copiedLink, setCopiedLink] = useState('');
     const { data, setData, post, processing, errors, reset, transform } = useForm({
         outcome: 'interested',
         notes: '',
@@ -43,6 +47,14 @@ export default function DonorShow({
         body: '',
     });
 
+    const trackingForm = useForm({
+        target_url: trackingLinks[0]?.target_url || '',
+        channel: 'copy',
+        subject: 'A cause you may want to support',
+        body: 'Please consider supporting this cause: {{donation_link}}',
+        message_template_id: '',
+    });
+
     const applyTemplate = (templateId) => {
         const template = messageTemplates.find((t) => String(t.id) === String(templateId));
         messageForm.setData((current) => ({
@@ -59,6 +71,20 @@ export default function DonorShow({
         messageForm.post(route('donors.messages.send', donor.id), {
             preserveScroll: true,
             onSuccess: () => messageForm.setData('body', ''),
+        });
+    };
+
+    const submitTracking = (channel) => {
+        trackingForm.setData('channel', channel);
+        trackingForm.transform((formData) => ({ ...formData, channel }));
+        trackingForm.post(route('donors.tracking-links.store', donor.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (channel === 'copy' && flash?.tracking_link_url) {
+                    navigator.clipboard?.writeText(flash.tracking_link_url);
+                    setCopiedLink(flash.tracking_link_url);
+                }
+            },
         });
     };
 
@@ -260,6 +286,9 @@ export default function DonorShow({
                         <h3 className="mb-1 font-semibold">Send message</h3>
                         <p className="mb-4 text-xs text-on-surface-variant">
                             Email, WhatsApp, or short SMS from this organization only.
+                            {hasWhatsAppFeature
+                                ? ' WhatsApp sends require an approved Meta template.'
+                                : ''}
                         </p>
                         {!messagingChannels.length ? (
                             <p className="text-sm text-on-surface-variant">
@@ -272,7 +301,15 @@ export default function DonorShow({
                                         <button
                                             key={channel.value}
                                             type="button"
-                                            onClick={() => messageForm.setData('channel', channel.value)}
+                                            onClick={() =>
+                                                messageForm.setData((current) => ({
+                                                    ...current,
+                                                    channel: channel.value,
+                                                    message_template_id: '',
+                                                    subject: '',
+                                                    body: '',
+                                                }))
+                                            }
                                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                                 messageForm.data.channel === channel.value
                                                     ? 'bg-secondary text-white'
@@ -287,8 +324,13 @@ export default function DonorShow({
                                     className="w-full rounded-xl border-slate-200"
                                     value={messageForm.data.message_template_id}
                                     onChange={(e) => applyTemplate(e.target.value)}
+                                    required={messageForm.data.channel === 'whatsapp'}
                                 >
-                                    <option value="">Blank / custom message</option>
+                                    <option value="">
+                                        {messageForm.data.channel === 'whatsapp'
+                                            ? 'Select approved WhatsApp template'
+                                            : 'Blank / custom message'}
+                                    </option>
                                     {messageTemplates
                                         .filter((t) => t.channel === messageForm.data.channel)
                                         .map((t) => (
@@ -305,14 +347,20 @@ export default function DonorShow({
                                         onChange={(e) => messageForm.setData('subject', e.target.value)}
                                     />
                                 )}
-                                <textarea
-                                    className="w-full rounded-xl border-slate-200"
-                                    rows={4}
-                                    placeholder="Message body"
-                                    value={messageForm.data.body}
-                                    onChange={(e) => messageForm.setData('body', e.target.value)}
-                                    required
-                                />
+                                {messageForm.data.channel !== 'whatsapp' ? (
+                                    <textarea
+                                        className="w-full rounded-xl border-slate-200"
+                                        rows={4}
+                                        placeholder="Message body"
+                                        value={messageForm.data.body}
+                                        onChange={(e) => messageForm.setData('body', e.target.value)}
+                                        required
+                                    />
+                                ) : (
+                                    <div className="rounded-xl bg-surface-container px-3 py-2 text-sm text-on-surface-variant">
+                                        {messageForm.data.body || 'Select a template to preview the message body.'}
+                                    </div>
+                                )}
                                 {Object.values(messageForm.errors).map((err) => (
                                     <p key={err} className="text-xs text-error">
                                         {err}
@@ -326,6 +374,101 @@ export default function DonorShow({
                                     Send {messagingChannels.find((c) => c.value === messageForm.data.channel)?.label || 'message'}
                                 </button>
                             </form>
+                        )}
+                    </section>
+
+                    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                        <h3 className="mb-1 font-semibold">Donation tracking link</h3>
+                        <p className="mb-4 text-xs text-on-surface-variant">
+                            Send an NGOBuddy project URL. Opens and payments within {attributionWindowDays} days
+                            after the last open are credited to you. Resend reuses the same link.
+                        </p>
+                        <div className="space-y-3">
+                            <input
+                                className="w-full rounded-xl border-slate-200"
+                                placeholder="https://hfsfoundation.org/project/blood-donation-camp/"
+                                value={trackingForm.data.target_url}
+                                onChange={(e) => trackingForm.setData('target_url', e.target.value)}
+                            />
+                            {trackingForm.data.channel !== 'whatsapp' && (
+                                <textarea
+                                    className="w-full rounded-xl border-slate-200"
+                                    rows={3}
+                                    value={trackingForm.data.body}
+                                    onChange={(e) => trackingForm.setData('body', e.target.value)}
+                                    placeholder="Optional message body. Use {{donation_link}}."
+                                />
+                            )}
+                            {Object.values(trackingForm.errors).map((err) => (
+                                <p key={err} className="text-xs text-error">
+                                    {err}
+                                </p>
+                            ))}
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    disabled={trackingForm.processing}
+                                    onClick={() => submitTracking('copy')}
+                                    className="rounded-xl bg-surface-container px-3 py-2 text-xs font-semibold"
+                                >
+                                    Copy link
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={trackingForm.processing}
+                                    onClick={() => submitTracking('email')}
+                                    className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white"
+                                >
+                                    Send email
+                                </button>
+                                {hasWhatsAppFeature && (
+                                    <button
+                                        type="button"
+                                        disabled={trackingForm.processing}
+                                        onClick={() => submitTracking('whatsapp')}
+                                        className="rounded-xl bg-secondary px-3 py-2 text-xs font-semibold text-white"
+                                    >
+                                        Send WhatsApp
+                                    </button>
+                                )}
+                            </div>
+                            {(copiedLink || flash?.tracking_link_url) && (
+                                <p className="break-all text-xs text-secondary">
+                                    {copiedLink || flash.tracking_link_url}
+                                </p>
+                            )}
+                        </div>
+
+                        {trackingLinks.length > 0 && (
+                            <div className="mt-5 space-y-4 border-t border-slate-100 pt-4">
+                                {trackingLinks.map((link) => (
+                                    <div key={link.id} className="rounded-xl bg-surface-container/60 p-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                            <div>
+                                                <p className="font-semibold">{link.volunteer?.name || 'You'}</p>
+                                                <p className="break-all text-xs text-on-surface-variant">{link.url}</p>
+                                            </div>
+                                            <p className="text-xs text-on-surface-variant">
+                                                Opens: {link.open_count}
+                                            </p>
+                                        </div>
+                                        <ol className="mt-3 space-y-1 border-l border-slate-200 pl-3 text-xs">
+                                            {(link.events || []).map((event) => (
+                                                <li key={event.id}>
+                                                    <span className="font-semibold uppercase">{event.event_type}</span>
+                                                    {' · '}
+                                                    {formatDateTime(event.occurred_at)}
+                                                    {event.page_url ? ` · ${event.page_url}` : ''}
+                                                    {event.amount ? ` · ${formatINR(event.amount)}` : ''}
+                                                </li>
+                                            ))}
+                                            {!link.events?.length && (
+                                                <li className="text-on-surface-variant">No events yet</li>
+                                            )}
+                                        </ol>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </section>
 

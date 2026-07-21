@@ -37,6 +37,7 @@ export default function BillingIndex({
     platformBillingEnabled,
     canManagePlans,
     canEditWhiteLabel,
+    toggleableFeatures = [],
 }) {
     const whiteLabelForm = useForm({
         custom_domain: organization.custom_domain || '',
@@ -50,6 +51,13 @@ export default function BillingIndex({
         trial_ends_at: organization.trial_ends_at
             ? organization.trial_ends_at.slice(0, 10)
             : '',
+        feature_overrides: {
+            whatsapp: features?.includes('whatsapp') || false,
+        },
+    });
+
+    const invoiceForm = useForm({
+        coupon_code: '',
     });
 
     const statusColors = {
@@ -66,7 +74,8 @@ export default function BillingIndex({
             <div className="mb-6">
                 <h2 className="text-headline-md">Subscription & usage</h2>
                 <p className="text-sm text-on-surface-variant">
-                    Plan limits, usage meters, invoices, and white-label settings for {organization.name}.
+                    Organization plan usage, invoices, and white-label for {organization.name}. Site-wide plan fees and
+                    platform Razorpay live under Site Settings.
                 </p>
             </div>
 
@@ -107,7 +116,7 @@ export default function BillingIndex({
                     <UsageBar label="Imports (month)" used={meters.imports_this_month} limit={limits.imports_monthly} />
                     <UsageBar
                         label="WhatsApp (month)"
-                        used={meters.messages_this_month}
+                        used={meters.whatsapp_this_month ?? meters.messages_this_month}
                         limit={limits.whatsapp_monthly}
                     />
                     {limits.campaigns != null && (
@@ -188,6 +197,19 @@ export default function BillingIndex({
                             value={planForm.data.trial_ends_at}
                             onChange={(e) => planForm.setData('trial_ends_at', e.target.value)}
                         />
+                        <label className="flex items-center gap-2 text-sm md:col-span-3">
+                            <input
+                                type="checkbox"
+                                checked={!!planForm.data.feature_overrides?.whatsapp}
+                                onChange={(e) =>
+                                    planForm.setData('feature_overrides', {
+                                        ...planForm.data.feature_overrides,
+                                        whatsapp: e.target.checked,
+                                    })
+                                }
+                            />
+                            WhatsApp module enabled for this organization
+                        </label>
                         <button
                             type="submit"
                             disabled={planForm.processing}
@@ -200,19 +222,37 @@ export default function BillingIndex({
             )}
 
             <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <h3 className="font-semibold">Invoices</h3>
                     {canManagePlans && (
-                        <Link
-                            href={route('billing.invoices.store')}
-                            method="post"
-                            as="button"
-                            className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                invoiceForm.post(route('billing.invoices.store'), {
+                                    onSuccess: () => invoiceForm.reset('coupon_code'),
+                                });
+                            }}
+                            className="flex flex-wrap items-center gap-2"
                         >
-                            Create invoice
-                        </Link>
+                            <input
+                                className="rounded-xl border-slate-200 text-sm"
+                                placeholder="Coupon code (optional)"
+                                value={invoiceForm.data.coupon_code}
+                                onChange={(e) => invoiceForm.setData('coupon_code', e.target.value.toUpperCase())}
+                            />
+                            <button
+                                type="submit"
+                                disabled={invoiceForm.processing}
+                                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                            >
+                                Create invoice
+                            </button>
+                        </form>
                     )}
                 </div>
+                {invoiceForm.errors.coupon_code && (
+                    <p className="mb-3 text-xs text-error">{invoiceForm.errors.coupon_code}</p>
+                )}
                 {!invoices.length ? (
                     <EmptyState icon="receipt_long" title="No invoices" description="Platform invoices will appear here." />
                 ) : (

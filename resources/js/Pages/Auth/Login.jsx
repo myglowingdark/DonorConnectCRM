@@ -21,7 +21,7 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <GuestLayout>
+        <GuestLayout fullBleed>
             <Head title="Login" />
             <div className="grid min-h-screen w-full lg:grid-cols-2">
                 <div className="relative hidden overflow-hidden bg-primary lg:flex lg:flex-col lg:justify-between lg:p-12">

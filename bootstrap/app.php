@@ -41,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'razorpay/webhook/*',
             'api/webhooks/*',
             'platform/razorpay/webhook/*',
+            'webhooks/meta/whatsapp',
+            't/events',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

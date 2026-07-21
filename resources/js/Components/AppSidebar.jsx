@@ -62,7 +62,7 @@ const adminNav = [
         ],
     },
     {
-        label: 'Platform',
+        label: 'Workspace',
         icon: 'settings',
         children: [
             { href: 'billing.index', label: 'Billing', icon: 'receipt_long' },
@@ -85,7 +85,6 @@ const superAdminNav = [
             { href: 'users.index', label: 'Users', icon: 'manage_accounts' },
             { href: 'margin.index', label: 'Margin dashboard', icon: 'account_balance' },
             { href: 'idle-pool.index', label: 'Idle telecallers', icon: 'groups_3' },
-            { href: 'platform.messaging.edit', label: 'Platform SMTP', icon: 'mail' },
         ],
     },
     {
@@ -131,7 +130,7 @@ const superAdminNav = [
         ],
     },
     {
-        label: 'Platform',
+        label: 'Workspace',
         icon: 'settings',
         requiresOrg: true,
         children: [
@@ -177,6 +176,9 @@ function isActiveHref(href) {
     try {
         if (href === 'organizations.sync.edit') {
             return route().current('organizations.sync.*') || route().current('sync.*');
+        }
+        if (href === 'site-settings.index') {
+            return route().current('site-settings.*') || route().current('platform.messaging.*');
         }
         return route().current(href) || route().current(`${href.split('.')[0]}.*`);
     } catch {
@@ -302,6 +304,20 @@ export default function AppSidebar({ mobileOpen = false, onClose }) {
                 </nav>
 
                 <div className="mt-auto shrink-0 space-y-1 border-t border-outline-variant px-4 pt-4">
+                    {role === 'super_admin' && (
+                        <Link
+                            href={safeRoute('site-settings.index')}
+                            onClick={onClose}
+                            className={`flex items-center gap-3 px-4 py-3 hover:bg-surface-container-low ${
+                                isActiveHref('site-settings.index')
+                                    ? 'font-bold text-primary'
+                                    : 'text-on-surface-variant'
+                            }`}
+                        >
+                            <span className="material-symbols-outlined">tune</span>
+                            <span className="text-label-md">Site Settings</span>
+                        </Link>
+                    )}
                     <Link
                         href={route('profile.edit')}
                         onClick={onClose}

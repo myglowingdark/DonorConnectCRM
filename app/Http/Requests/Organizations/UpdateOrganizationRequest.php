@@ -17,6 +17,9 @@ class UpdateOrganizationRequest extends FormRequest
         if ($this->has('donors_limit') && $this->input('donors_limit') === '') {
             $this->merge(['donors_limit' => null]);
         }
+        if ($this->has('attribution_window_days') && $this->input('attribution_window_days') === '') {
+            $this->merge(['attribution_window_days' => 3]);
+        }
     }
 
     public function rules(): array
@@ -37,6 +40,7 @@ class UpdateOrganizationRequest extends FormRequest
             'currency' => ['nullable', 'string', 'size:3'],
             'is_active' => ['sometimes', 'boolean'],
             'donors_limit' => ['nullable', 'integer', 'min:1'],
+            'attribution_window_days' => ['nullable', 'integer', 'min:1', 'max:90'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ];
     }

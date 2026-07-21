@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\Plan;
 use App\Models\PlanInvoice;
 use App\Models\PlatformBillingSetting;
+use App\Services\SaaS\CouponService;
 use App\Services\SaaS\EntitlementService;
 use App\Services\SaaS\UsageMeterService;
 use App\Support\OrganizationContext;
@@ -48,15 +49,19 @@ class BillingController extends Controller
                 'custom_domain' => $organization->custom_domain,
                 'email_from_name' => $organization->email_from_name,
                 'brand_color' => $organization->brand_color,
+                'feature_overrides' => $organization->feature_overrides ?? [],
             ],
             'plans' => $plans,
-            'meters' => $usage->metersFor($organization),
+            'meters' => array_merge($usage->metersFor($organization), [
+                'whatsapp_this_month' => $usage->whatsappThisMonth($organization),
+            ]),
             'limits' => $entitlements->limitsFor($organization),
             'features' => $entitlements->featuresFor($organization),
             'invoices' => $invoices,
             'platformBillingEnabled' => $platformBilling->enabled,
             'canManagePlans' => $request->user()->isSuperAdmin(),
             'canEditWhiteLabel' => $entitlements->hasFeature($organization, 'white_label') || $request->user()->isSuperAdmin(),
+            'toggleableFeatures' => ['whatsapp', 'razorpay', 'api', 'webhooks', 'white_label', 'internal_telecallers', 'capacity_booking'],
         ]);
     }
 
@@ -68,12 +73,32 @@ class BillingController extends Controller
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
             'subscription_status' => ['nullable', 'string', 'in:trial,active,past_due,suspended'],
             'trial_ends_at' => ['nullable', 'date'],
+            'feature_overrides' => ['nullable', 'array'],
+            'feature_overrides.whatsapp' => ['nullable', 'boolean'],
+            'feature_overrides.razorpay' => ['nullable', 'boolean'],
+            'feature_overrides.api' => ['nullable', 'boolean'],
+            'feature_overrides.webhooks' => ['nullable', 'boolean'],
+            'feature_overrides.white_label' => ['nullable', 'boolean'],
+            'feature_overrides.internal_telecallers' => ['nullable', 'boolean'],
+            'feature_overrides.capacity_booking' => ['nullable', 'boolean'],
         ]);
+
+        $overrides = $organization->feature_overrides ?? [];
+        if (array_key_exists('feature_overrides', $validated) && is_array($validated['feature_overrides'])) {
+            foreach ($validated['feature_overrides'] as $feature => $enabled) {
+                if ($enabled === null) {
+                    unset($overrides[$feature]);
+                } else {
+                    $overrides[$feature] = (bool) $enabled;
+                }
+            }
+        }
 
         $organization->update([
             'plan_id' => $validated['plan_id'],
             'subscription_status' => $validated['subscription_status'] ?? $organization->subscription_status,
             'trial_ends_at' => $validated['trial_ends_at'] ?? $organization->trial_ends_at,
+            'feature_overrides' => $overrides ?: null,
         ]);
 
         return back()->with('success', 'Plan assigned.');
@@ -103,22 +128,48 @@ class BillingController extends Controller
         return back()->with('success', 'White-label settings saved.');
     }
 
-    public function createInvoice(Request $request): RedirectResponse
+    public function createInvoice(Request $request, CouponService $coupons): RedirectResponse
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
         $orgId = OrganizationContext::id();
         abort_unless($orgId, 403);
 
+        $validated = $request->validate([
+            'coupon_code' => ['nullable', 'string', 'max:64'],
+        ]);
+
         $organization = Organization::query()->with('plan')->findOrFail($orgId);
 
-        $amount = (int) ($organization->plan?->price_monthly ?? 0);
+        $originalAmount = (int) ($organization->plan?->price_monthly ?? 0);
 
-        if ($amount < 1) {
+        if ($originalAmount < 1) {
             return back()->with('error', 'Selected plan has no monthly platform fee.');
         }
 
-        PlanInvoice::create([
+        $amount = $originalAmount;
+        $discount = 0;
+        $couponMeta = null;
+        $coupon = null;
+
+        if (filled($validated['coupon_code'] ?? null)) {
+            $quote = $coupons->quote($validated['coupon_code'], $organization, $originalAmount);
+            $coupon = $quote['coupon'];
+            $discount = $quote['discount'];
+            $amount = $quote['amount'];
+            $couponMeta = [
+                'original_amount' => $originalAmount,
+                'discount_amount' => $discount,
+                'coupon_code' => $coupon->code,
+                'coupon_id' => $coupon->id,
+            ];
+        }
+
+        if ($amount < 1) {
+            return back()->with('error', 'Invoice amount after discount must be at least ₹1.');
+        }
+
+        $invoice = PlanInvoice::create([
             'organization_id' => $orgId,
             'plan_id' => $organization->plan_id,
             'invoice_number' => 'DC-'.strtoupper(Str::ulid()),
@@ -127,9 +178,16 @@ class BillingController extends Controller
             'status' => 'open',
             'period_start' => now()->startOfMonth(),
             'period_end' => now()->endOfMonth(),
+            'meta' => $couponMeta,
         ]);
 
-        return back()->with('success', 'Platform invoice created.');
+        if ($coupon) {
+            $coupons->redeem($coupon, $organization, $invoice, $discount);
+        }
+
+        return back()->with('success', $discount > 0
+            ? "Platform invoice created with {$discount} INR discount."
+            : 'Platform invoice created.');
     }
 
     public function payInvoice(Request $request, PlanInvoice $invoice): RedirectResponse

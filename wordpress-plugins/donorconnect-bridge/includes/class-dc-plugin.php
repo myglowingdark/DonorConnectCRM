@@ -81,5 +81,6 @@ class DC_Bridge_Plugin {
 		( new DC_Bridge_REST_API() )->register();
 		( new DC_Bridge_Admin() )->register();
 		( new DC_Bridge_Pusher() )->register();
+		( new DC_Bridge_Tracking() )->register();
 	}
 }

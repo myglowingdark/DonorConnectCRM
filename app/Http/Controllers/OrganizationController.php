@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Organizations\StoreOrganizationRequest;
 use App\Http\Requests\Organizations\UpdateOrganizationRequest;
 use App\Models\CommissionCycle;
+use App\Models\CommissionSetting;
 use App\Models\Donation;
 use App\Models\Organization;
+use App\Models\PlatformCommissionSetting;
 use App\Models\RazorpayPayment;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -64,6 +66,11 @@ class OrganizationController extends Controller
         unset($data['logo']);
 
         $organization = Organization::create($data);
+
+        CommissionSetting::query()->firstOrCreate(
+            ['organization_id' => $organization->id],
+            PlatformCommissionSetting::current()->defaultsForOrganization()
+        );
 
         $auditLogger->log('organization.created', $organization, null, $organization->toArray(), $organization->id);
 
@@ -212,12 +219,15 @@ class OrganizationController extends Controller
         Organization $organization,
         AuditLogger $auditLogger,
     ): RedirectResponse {
-        $old = $organization->only(['name', 'slug', 'brand_color', 'timezone', 'currency', 'is_active', 'donors_limit', 'logo_path']);
+        $old = $organization->only(['name', 'slug', 'brand_color', 'timezone', 'currency', 'is_active', 'donors_limit', 'attribution_window_days', 'logo_path']);
         $data = $request->validated();
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
 
         if (array_key_exists('donors_limit', $data) && $data['donors_limit'] === '') {
             $data['donors_limit'] = null;
+        }
+        if (array_key_exists('attribution_window_days', $data) && ($data['attribution_window_days'] === '' || $data['attribution_window_days'] === null)) {
+            $data['attribution_window_days'] = 3;
         }
 
         if ($request->hasFile('logo')) {

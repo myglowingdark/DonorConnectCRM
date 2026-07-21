@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AttributionSource;
 use App\Enums\AttributionStatus;
 use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,8 @@ class DonationAttribution extends Model
         'donation_id',
         'donor_id',
         'volunteer_id',
+        'source',
+        'tracking_link_id',
         'status',
         'admin_note',
         'reviewed_by',
@@ -25,9 +28,15 @@ class DonationAttribution extends Model
     protected function casts(): array
     {
         return [
+            'source' => AttributionSource::class,
             'status' => AttributionStatus::class,
             'reviewed_at' => 'datetime',
         ];
+    }
+
+    public function trackingLink(): BelongsTo
+    {
+        return $this->belongsTo(TrackingLink::class);
     }
 
     public function donation(): BelongsTo

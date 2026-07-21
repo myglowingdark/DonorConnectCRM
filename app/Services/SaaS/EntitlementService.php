@@ -3,6 +3,7 @@
 namespace App\Services\SaaS;
 
 use App\Models\Organization;
+use App\Models\PlatformMessagingSetting;
 use Illuminate\Validation\ValidationException;
 
 class EntitlementService
@@ -29,6 +30,11 @@ class EntitlementService
         $overrides = $organization->feature_overrides ?? [];
 
         $enabled = collect($planFeatures);
+
+        // Site-wide Super Admin module unlocks (before per-org overrides).
+        if (PlatformMessagingSetting::current()->whatsapp_module_enabled) {
+            $enabled->push('whatsapp');
+        }
 
         foreach ($overrides as $feature => $enabledFlag) {
             if ($enabledFlag) {
@@ -116,6 +122,27 @@ class EntitlementService
 
         throw ValidationException::withMessages([
             'seats_limit' => "Seat limit reached ({$current}/{$limit}). Upgrade your plan to invite more team members.",
+        ]);
+    }
+
+    public function assertCanSendWhatsApp(Organization $organization): void
+    {
+        $this->assertFeature($organization, 'whatsapp');
+
+        $limit = $this->limitsFor($organization)['whatsapp_monthly'] ?? null;
+
+        if ($limit === null) {
+            return;
+        }
+
+        $current = app(UsageMeterService::class)->whatsappThisMonth($organization);
+
+        if ($current < (int) $limit) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'whatsapp_limit' => "Monthly WhatsApp limit reached ({$current}/{$limit}). Upgrade your plan to send more messages.",
         ]);
     }
 }

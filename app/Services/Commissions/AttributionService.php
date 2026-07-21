@@ -2,6 +2,7 @@
 
 namespace App\Services\Commissions;
 
+use App\Enums\AttributionSource;
 use App\Enums\AttributionStatus;
 use App\Enums\UserRole;
 use App\Models\Donation;
@@ -40,6 +41,7 @@ class AttributionService
                 'donation_id' => $donation->id,
                 'donor_id' => $donor->id,
                 'volunteer_id' => $volunteer->id,
+                'source' => AttributionSource::Call,
                 'status' => AttributionStatus::Pending,
             ]);
             $created[] = $attribution->load(['donor', 'volunteer', 'donation']);

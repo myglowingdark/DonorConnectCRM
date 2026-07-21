@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'meta' => [
+        'app_id' => env('META_APP_ID'),
+        'app_secret' => env('META_APP_SECRET'),
+        'embedded_signup_config_id' => env('META_EMBEDDED_SIGNUP_CONFIG_ID'),
+        'api_version' => env('META_API_VERSION', 'v21.0'),
+        'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
+    ],
+
 ];

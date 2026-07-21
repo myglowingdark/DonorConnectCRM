@@ -150,4 +150,56 @@ class OrgLimitsAndPlatformSmtpTest extends TestCase
 
         Mail::assertSent(DonorOutreachMail::class);
     }
+
+    public function test_super_admin_can_enable_whatsapp_module_site_wide(): void
+    {
+        $org = Organization::factory()->create();
+        $this->assertFalse(app(\App\Services\SaaS\EntitlementService::class)->hasFeature($org, 'whatsapp'));
+
+        $super = User::factory()->superAdmin()->create();
+        $this->actingAs($super)
+            ->put(route('platform.messaging.update'), [
+                'whatsapp_module_enabled' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue(PlatformMessagingSetting::current()->whatsapp_module_enabled);
+        $this->assertTrue(app(\App\Services\SaaS\EntitlementService::class)->hasFeature($org->fresh(), 'whatsapp'));
+    }
+
+    public function test_super_admin_can_complete_meta_embedded_signup_connect(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://graph.facebook.com/*/oauth/access_token*' => \Illuminate\Support\Facades\Http::response([
+                'access_token' => 'embedded-token',
+                'token_type' => 'bearer',
+            ], 200),
+            'https://graph.facebook.com/*/subscribed_apps' => \Illuminate\Support\Facades\Http::response(['success' => true], 200),
+            'https://graph.facebook.com/*/12345*' => \Illuminate\Support\Facades\Http::response([
+                'id' => '12345',
+                'display_phone_number' => '+91 98765 43210',
+            ], 200),
+        ]);
+
+        config([
+            'services.meta.app_id' => 'app-1',
+            'services.meta.app_secret' => 'secret-1',
+            'services.meta.api_version' => 'v21.0',
+        ]);
+
+        $super = User::factory()->superAdmin()->create();
+        $this->actingAs($super)
+            ->post(route('platform.messaging.whatsapp.connect'), [
+                'code' => 'exchange-code',
+                'phone_number_id' => '12345',
+                'waba_id' => 'waba-9',
+            ])
+            ->assertRedirect();
+
+        $platform = PlatformMessagingSetting::current();
+        $this->assertTrue($platform->whatsapp_enabled);
+        $this->assertSame('12345', $platform->meta_phone_number_id);
+        $this->assertSame('waba-9', $platform->meta_waba_id);
+        $this->assertSame('embedded-token', $platform->meta_access_token);
+    }
 }

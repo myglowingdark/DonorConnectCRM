@@ -25,10 +25,14 @@ export default function ResetPassword({ token, email }) {
         <GuestLayout>
             <Head title="Reset Password" />
 
-            <form onSubmit={submit}>
+            <h2 className="text-headline-md text-on-surface">Reset password</h2>
+            <p className="mt-2 text-sm text-on-surface-variant">
+                Choose a new password for your account.
+            </p>
+
+            <form onSubmit={submit} className="mt-8 space-y-5">
                 <div>
                     <InputLabel htmlFor="email" value="Email" />
-
                     <TextInput
                         id="email"
                         type="email"
@@ -38,13 +42,11 @@ export default function ResetPassword({ token, email }) {
                         autoComplete="username"
                         onChange={(e) => setData('email', e.target.value)}
                     />
-
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
+                <div>
                     <InputLabel htmlFor="password" value="Password" />
-
                     <TextInput
                         id="password"
                         type="password"
@@ -52,19 +54,17 @@ export default function ResetPassword({ token, email }) {
                         value={data.password}
                         className="mt-1 block w-full"
                         autoComplete="new-password"
-                        isFocused={true}
+                        isFocused
                         onChange={(e) => setData('password', e.target.value)}
                     />
-
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
+                <div>
                     <InputLabel
                         htmlFor="password_confirmation"
                         value="Confirm Password"
                     />
-
                     <TextInput
                         type="password"
                         id="password_confirmation"
@@ -76,18 +76,15 @@ export default function ResetPassword({ token, email }) {
                             setData('password_confirmation', e.target.value)
                         }
                     />
-
                     <InputError
                         message={errors.password_confirmation}
                         className="mt-2"
                     />
                 </div>
 
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Reset Password
-                    </PrimaryButton>
-                </div>
+                <PrimaryButton className="w-full justify-center py-3" disabled={processing}>
+                    Reset Password
+                </PrimaryButton>
             </form>
         </GuestLayout>
     );

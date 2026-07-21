@@ -31,7 +31,7 @@ class PlanCatalog
                 'whatsapp_monthly_limit' => 2000,
                 'telecaller_hours_monthly' => null,
                 'imports_monthly_limit' => 50,
-                'features' => ['messaging', 'reports', 'razorpay', 'api', 'webhooks'],
+                'features' => ['messaging', 'reports', 'razorpay', 'api', 'webhooks', 'whatsapp'],
                 'sort_order' => 2,
             ],
             'enterprise' => [
@@ -49,6 +49,7 @@ class PlanCatalog
                     'razorpay',
                     'api',
                     'webhooks',
+                    'whatsapp',
                     'internal_telecallers',
                     'white_label',
                     'capacity_booking',

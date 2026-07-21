@@ -288,10 +288,13 @@ class WordPressDonorSyncService
         if ($existing) {
             $existing->update($payload);
             $run->increment('donations_updated');
+            $donation = $existing->fresh();
         } else {
-            Donation::create($payload);
+            $donation = Donation::create($payload);
             $run->increment('donations_imported');
         }
+
+        app(\App\Services\Tracking\TrackingLinkService::class)->attributeDonationIfTracked($donation);
     }
 
     protected function refreshDonorTotals(Donor $donor): void

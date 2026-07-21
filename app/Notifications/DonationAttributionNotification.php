@@ -45,6 +45,11 @@ class DonationAttributionNotification extends Notification
                 "Your attribution for {$donor} (₹{$amount}) was rejected.",
                 route('attributions.index'),
             ],
+            'link_paid' => [
+                'Successful tracked donation',
+                "{$donor} donated ₹{$amount} via your tracking link.",
+                route('donors.show', $this->attribution->donor_id),
+            ],
             default => [
                 'Attribution update',
                 "Attribution for {$donor} was updated.",

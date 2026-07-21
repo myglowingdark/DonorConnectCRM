@@ -21,6 +21,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\MarginDashboardController;
 use App\Http\Controllers\MessagingController;
+use App\Http\Controllers\MetaWhatsAppWebhookController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrganizationController;
@@ -31,7 +32,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QueueDialerController;
 use App\Http\Controllers\RazorpayController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\TransferController;
+use App\Http\Controllers\TrackingLinkController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebhookController;
@@ -42,8 +45,23 @@ Route::redirect('/', '/login');
 Route::post('/razorpay/webhook/{organization}', [RazorpayController::class, 'webhook'])
     ->name('razorpay.webhook');
 
+Route::get('/webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'verify'])
+    ->name('webhooks.meta.whatsapp.verify');
+Route::post('/webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'handle'])
+    ->name('webhooks.meta.whatsapp');
+
 Route::get('/invites/{token}', [OnboardingController::class, 'showAccept'])->name('invites.show');
 Route::post('/invites/{token}/accept', [OnboardingController::class, 'acceptInvite'])->name('invites.accept');
+
+Route::get('/t/{code}', [TrackingLinkController::class, 'redirect'])
+    ->where('code', '[A-Za-z0-9_-]+')
+    ->middleware('throttle:60,1')
+    ->name('tracking.redirect');
+Route::post('/t/events', [TrackingLinkController::class, 'recordEvent'])
+    ->middleware('throttle:120,1')
+    ->name('tracking.events');
+Route::options('/t/events', [TrackingLinkController::class, 'eventsOptions'])
+    ->name('tracking.events.options');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -246,6 +264,12 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/messaging', [MessagingController::class, 'updateSettings'])
             ->middleware('role:admin')
             ->name('messaging.settings.update');
+        Route::post('/messaging/whatsapp/test', [MessagingController::class, 'testWhatsAppConnection'])
+            ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
+            ->name('messaging.whatsapp.test');
+        Route::post('/messaging/whatsapp/connect', [MessagingController::class, 'connectWhatsApp'])
+            ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
+            ->name('messaging.whatsapp.connect');
         Route::get('/messaging/templates', [MessagingController::class, 'templates'])
             ->middleware('role:admin')
             ->name('messaging.templates');
@@ -258,9 +282,17 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/messaging/templates/{template}', [MessagingController::class, 'destroyTemplate'])
             ->middleware('role:admin')
             ->name('messaging.templates.destroy');
+        Route::post('/messaging/templates/{template}/submit-meta', [MessagingController::class, 'submitTemplate'])
+            ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
+            ->name('messaging.templates.submit-meta');
+        Route::post('/messaging/templates/{template}/sync-meta', [MessagingController::class, 'syncTemplate'])
+            ->middleware(['role:super_admin,organization_admin', 'feature:whatsapp'])
+            ->name('messaging.templates.sync-meta');
 
         Route::post('/donors/{donor}/messages', [MessagingController::class, 'send'])
             ->name('donors.messages.send');
+        Route::post('/donors/{donor}/tracking-links', [TrackingLinkController::class, 'store'])
+            ->name('donors.tracking-links.store');
         Route::post('/donors/{donor}/razorpay-order', [RazorpayController::class, 'createOrder'])
             ->middleware(['role:admin', 'feature:razorpay'])
             ->name('donors.razorpay.order');
@@ -399,12 +431,44 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:super_admin')
         ->name('idle-pool.reassign');
 
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('/site-settings', [SiteSettingsController::class, 'index'])
+            ->name('site-settings.index');
+        Route::put('/site-settings/modules', [SiteSettingsController::class, 'updateModules'])
+            ->name('site-settings.modules.update');
+        Route::put('/site-settings/messaging', [SiteSettingsController::class, 'updateMessaging'])
+            ->name('site-settings.messaging.update');
+        Route::post('/site-settings/messaging/whatsapp/test', [SiteSettingsController::class, 'testWhatsApp'])
+            ->name('site-settings.messaging.whatsapp.test');
+        Route::post('/site-settings/messaging/whatsapp/connect', [SiteSettingsController::class, 'connectWhatsApp'])
+            ->name('site-settings.messaging.whatsapp.connect');
+        Route::put('/site-settings/plans/{plan}', [SiteSettingsController::class, 'updatePlan'])
+            ->name('site-settings.plans.update');
+        Route::put('/site-settings/billing', [SiteSettingsController::class, 'updateBilling'])
+            ->name('site-settings.billing.update');
+        Route::post('/site-settings/coupons', [SiteSettingsController::class, 'storeCoupon'])
+            ->name('site-settings.coupons.store');
+        Route::put('/site-settings/coupons/{coupon}', [SiteSettingsController::class, 'updateCoupon'])
+            ->name('site-settings.coupons.update');
+        Route::delete('/site-settings/coupons/{coupon}', [SiteSettingsController::class, 'destroyCoupon'])
+            ->name('site-settings.coupons.destroy');
+        Route::put('/site-settings/commission-defaults', [SiteSettingsController::class, 'updateCommissionDefaults'])
+            ->name('site-settings.commission-defaults.update');
+    });
+
+    // Legacy aliases — redirect / delegate to Site Settings.
     Route::get('/platform/messaging', [PlatformMessagingController::class, 'edit'])
         ->middleware('role:super_admin')
         ->name('platform.messaging.edit');
     Route::put('/platform/messaging', [PlatformMessagingController::class, 'update'])
         ->middleware('role:super_admin')
         ->name('platform.messaging.update');
+    Route::post('/platform/messaging/whatsapp/test', [PlatformMessagingController::class, 'testWhatsApp'])
+        ->middleware('role:super_admin')
+        ->name('platform.messaging.whatsapp.test');
+    Route::post('/platform/messaging/whatsapp/connect', [PlatformMessagingController::class, 'connectWhatsApp'])
+        ->middleware('role:super_admin')
+        ->name('platform.messaging.whatsapp.connect');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
