@@ -395,6 +395,19 @@ class DonorMessagingTest extends TestCase
         $this->assertSame(MetaTemplateStatus::Pending, $template->fresh()->meta_status);
         $this->assertSame('tmpl-1', $template->fresh()->meta_template_id);
 
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/message_templates') || $request->method() !== 'POST') {
+                return false;
+            }
+
+            $body = collect($request['components'] ?? [])->firstWhere('type', 'BODY');
+            $text = (string) ($body['text'] ?? '');
+
+            // Meta rejects templates that end with a variable; we append closing text.
+            return str_contains($text, '{{1}}')
+                && str_ends_with(rtrim($text), 'Thank you.');
+        });
+
         $this->post(route('messaging.templates.sync-meta-pending'))
             ->assertRedirect();
 

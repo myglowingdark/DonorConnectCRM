@@ -712,12 +712,12 @@ class MessageService
             ) ?? $body;
         }
 
-        // Meta rejects bodies that start or end with a variable parameter.
-        if (preg_match('/^\{\{\d+\}\}/', $body)) {
-            $body = 'Hello '.$body;
+        // Meta rejects bodies that start or end with a variable (punctuation alone is not enough).
+        if (preg_match('/^[\s\p{P}]*\{\{\d+\}\}/u', $body)) {
+            $body = 'Hello, '.$body;
         }
-        if (preg_match('/\{\{\d+\}\}$/', $body)) {
-            $body .= '.';
+        if (preg_match('/\{\{\d+\}\}[\s\p{P}]*$/u', $body)) {
+            $body = rtrim($body).' Thank you.';
         }
 
         return $body;

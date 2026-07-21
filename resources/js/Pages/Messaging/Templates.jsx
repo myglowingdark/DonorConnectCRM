@@ -356,6 +356,12 @@ export default function MessagingTemplates({
                         onChange={(e) => form.setData('body', e.target.value)}
                         required
                     />
+                    {isWhatsApp && (
+                        <p className="text-[11px] text-on-surface-variant">
+                            Meta rule: do not start or end the message with a variable (e.g. avoid ending with{' '}
+                            {'{{org}}'}). Add a short closing like “Thank you.” after the last variable.
+                        </p>
+                    )}
                     <div className="space-y-1.5">
                         <p className="text-xs font-medium text-on-surface-variant">
                             Variables — click to insert at cursor
