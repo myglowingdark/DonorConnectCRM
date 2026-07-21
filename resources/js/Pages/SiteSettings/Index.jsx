@@ -194,6 +194,9 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
                     Allow orgs to use these platform Meta credentials
                 </label>
 
+                <p className="text-xs font-semibold text-on-surface-variant">
+                    Manual IDs (digits only — not the +1 555 display number)
+                </p>
                 <div className="grid gap-3 md:grid-cols-2">
                     <input
                         className="rounded-xl border-slate-200"
@@ -207,18 +210,28 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
                         value={form.data.meta_embedded_signup_config_id}
                         onChange={(e) => form.setData('meta_embedded_signup_config_id', e.target.value)}
                     />
-                    <input
-                        className="rounded-xl border-slate-200"
-                        placeholder="Phone Number ID"
-                        value={form.data.meta_phone_number_id}
-                        onChange={(e) => form.setData('meta_phone_number_id', e.target.value)}
-                    />
-                    <input
-                        className="rounded-xl border-slate-200"
-                        placeholder="WABA ID"
-                        value={form.data.meta_waba_id}
-                        onChange={(e) => form.setData('meta_waba_id', e.target.value)}
-                    />
+                    <div>
+                        <input
+                            className="w-full rounded-xl border-slate-200"
+                            placeholder="Phone Number ID (digits only)"
+                            value={form.data.meta_phone_number_id}
+                            onChange={(e) => form.setData('meta_phone_number_id', e.target.value)}
+                        />
+                        <p className="mt-1 text-[11px] text-on-surface-variant">
+                            From Meta → WhatsApp → API Setup → Phone number ID (long number). Not +1 555-…
+                        </p>
+                    </div>
+                    <div>
+                        <input
+                            className="w-full rounded-xl border-slate-200"
+                            placeholder="WABA ID (digits only)"
+                            value={form.data.meta_waba_id}
+                            onChange={(e) => form.setData('meta_waba_id', e.target.value)}
+                        />
+                        <p className="mt-1 text-[11px] text-on-surface-variant">
+                            WhatsApp Business Account ID from the same Meta API Setup page.
+                        </p>
+                    </div>
                     <input
                         className="rounded-xl border-slate-200"
                         placeholder="API version"
@@ -230,7 +243,7 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
                         placeholder={
                             messaging.has_meta_access_token
                                 ? 'Access token (leave blank to keep)'
-                                : 'Permanent access token'
+                                : 'Permanent / temporary access token (required)'
                         }
                         type="password"
                         value={form.data.meta_access_token}

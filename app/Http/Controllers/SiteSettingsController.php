@@ -180,9 +180,11 @@ class SiteSettingsController extends Controller
         $settings = PlatformMessagingSetting::current();
 
         if (! $settings->hasMetaCredentials()) {
+            $gaps = implode(', ', $settings->metaCredentialGaps());
+
             return redirect()
                 ->route('site-settings.index', ['tab' => 'messaging'])
-                ->with('error', 'Platform Meta WhatsApp credentials are incomplete.');
+                ->with('error', "Platform Meta WhatsApp credentials are incomplete: {$gaps}. Use Connect with Meta, or paste Phone Number ID + WABA ID (digits only) and an access token from Meta → WhatsApp → API Setup.");
         }
 
         $credentials = new MetaWhatsAppCredentials(

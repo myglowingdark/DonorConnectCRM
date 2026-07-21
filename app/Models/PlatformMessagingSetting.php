@@ -57,6 +57,34 @@ class PlatformMessagingSetting extends Model
     {
         return filled($this->meta_access_token)
             && filled($this->meta_phone_number_id)
-            && filled($this->meta_waba_id);
+            && filled($this->meta_waba_id)
+            && preg_match('/^\d+$/', (string) $this->meta_phone_number_id)
+            && preg_match('/^\d+$/', (string) $this->meta_waba_id);
+    }
+
+    /** @return list<string> */
+    public function metaCredentialGaps(): array
+    {
+        $gaps = [];
+
+        if (blank($this->meta_access_token)) {
+            $gaps[] = 'Access token';
+        }
+
+        $phone = (string) ($this->meta_phone_number_id ?? '');
+        if ($phone === '') {
+            $gaps[] = 'Phone Number ID';
+        } elseif (! preg_match('/^\d+$/', $phone)) {
+            $gaps[] = 'Phone Number ID must be digits only (not the display number like +1 555-…)';
+        }
+
+        $waba = (string) ($this->meta_waba_id ?? '');
+        if ($waba === '') {
+            $gaps[] = 'WABA ID';
+        } elseif (! preg_match('/^\d+$/', $waba)) {
+            $gaps[] = 'WABA ID must be digits only';
+        }
+
+        return $gaps;
     }
 }
