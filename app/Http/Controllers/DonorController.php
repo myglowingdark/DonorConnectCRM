@@ -85,20 +85,9 @@ class DonorController extends Controller
             });
         }
 
-        // Priority: overdue → due today → upcoming follow-up → never contacted → rest
+        // Priority: due follow-ups → upcoming follow-ups → no follow-up (longest since last call)
         $donors = $query
-            ->orderByRaw("
-                CASE
-                    WHEN do_not_call = 1 THEN 9
-                    WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at < ? THEN 0
-                    WHEN next_follow_up_at IS NOT NULL AND DATE(next_follow_up_at) = DATE(?) THEN 1
-                    WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at > ? THEN 2
-                    WHEN last_contacted_at IS NULL THEN 3
-                    ELSE 4
-                END
-            ", [now(), now(), now()])
-            ->orderBy('next_follow_up_at')
-            ->orderBy('full_name')
+            ->orderForNextCall()
             ->paginate(20)
             ->withQueryString()
             ->through(function (Donor $donor) {
@@ -110,17 +99,7 @@ class DonorController extends Controller
         $queueBase = $baseQuery->clone()->callable();
 
         $nextToCall = $queueBase->clone()
-            ->orderByRaw("
-                CASE
-                    WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at < ? THEN 0
-                    WHEN next_follow_up_at IS NOT NULL AND DATE(next_follow_up_at) = DATE(?) THEN 1
-                    WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at > ? THEN 2
-                    WHEN last_contacted_at IS NULL THEN 3
-                    ELSE 4
-                END
-            ", [now(), now(), now()])
-            ->orderBy('next_follow_up_at')
-            ->orderBy('full_name')
+            ->orderForNextCall()
             ->first();
 
         $queueStats = [
@@ -167,8 +146,7 @@ class DonorController extends Controller
                 ->assignedTo($request->user()->id)
                 ->callable()
                 ->where('id', '!=', $donor->id)
-                ->orderByRaw('CASE WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at <= ? THEN 0 ELSE 1 END', [now()])
-                ->orderBy('next_follow_up_at')
+                ->orderForNextCall()
                 ->value('id');
         }
 
@@ -202,8 +180,7 @@ class DonorController extends Controller
                 ->when($request->user()->isVolunteer(), fn ($q) => $q->assignedTo($request->user()->id))
                 ->callable()
                 ->where('id', '!=', $donor->id)
-                ->orderByRaw('CASE WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at <= ? THEN 0 ELSE 1 END', [now()])
-                ->orderBy('next_follow_up_at')
+                ->orderForNextCall()
                 ->value('id');
 
             if ($nextId) {

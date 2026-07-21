@@ -102,7 +102,7 @@ class Donor extends Model
     }
 
     /**
-     * Donors a volunteer should call next: overdue/due follow-ups, then never contacted.
+     * Donors ready to work now: due/overdue follow-ups, or no follow-up set (work by last-contact age).
      */
     public function scopeNeedsCall(Builder $query): Builder
     {
@@ -111,7 +111,7 @@ class Donor extends Model
                 $q->where(function (Builder $inner) {
                     $inner->whereNotNull('next_follow_up_at')
                         ->where('next_follow_up_at', '<=', now()->endOfDay());
-                })->orWhereNull('last_contacted_at');
+                })->orWhereNull('next_follow_up_at');
             });
     }
 
@@ -120,18 +120,51 @@ class Donor extends Model
         return $query->where('do_not_call', false);
     }
 
+    /**
+     * Next-donor order:
+     * 1) Follow-up due/overdue (oldest due first)
+     * 2) Upcoming scheduled follow-up (soonest first)
+     * 3) No follow-up → never contacted, then contacted longest ago
+     */
+    public function scopeOrderForNextCall(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw('
+                CASE
+                    WHEN do_not_call = 1 THEN 9
+                    WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at <= ? THEN 0
+                    WHEN next_follow_up_at IS NOT NULL THEN 1
+                    ELSE 2
+                END ASC
+            ', [now()])
+            ->orderByRaw('
+                CASE
+                    WHEN next_follow_up_at IS NOT NULL THEN next_follow_up_at
+                END ASC
+            ')
+            ->orderByRaw('
+                CASE
+                    WHEN next_follow_up_at IS NULL AND last_contacted_at IS NULL THEN 0
+                    WHEN next_follow_up_at IS NULL THEN 1
+                    ELSE 2
+                END ASC
+            ')
+            ->orderByRaw('
+                CASE
+                    WHEN next_follow_up_at IS NULL THEN last_contacted_at
+                END ASC
+            ')
+            ->orderBy('full_name');
+    }
+
     public function callPriority(): string
     {
         if ($this->do_not_call) {
             return 'do_not_call';
         }
 
-        if ($this->next_follow_up_at && $this->next_follow_up_at->isPast()) {
-            return 'overdue';
-        }
-
-        if ($this->next_follow_up_at && $this->next_follow_up_at->isToday()) {
-            return 'due_today';
+        if ($this->next_follow_up_at && $this->next_follow_up_at->lte(now())) {
+            return $this->next_follow_up_at->isToday() ? 'due_today' : 'overdue';
         }
 
         if ($this->next_follow_up_at && $this->next_follow_up_at->isFuture()) {
@@ -142,6 +175,6 @@ class Donor extends Model
             return 'new';
         }
 
-        return 'later';
+        return 'cold';
     }
 }

@@ -51,9 +51,7 @@ class DashboardController extends Controller
 
         $nextDonor = (clone $assignedQuery)
             ->callable()
-            ->orderByRaw('CASE WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at <= ? THEN 0 ELSE 1 END', [now()])
-            ->orderBy('next_follow_up_at')
-            ->orderBy('last_contacted_at')
+            ->orderForNextCall()
             ->first();
 
         $followUps = (clone $assignedQuery)

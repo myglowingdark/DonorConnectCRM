@@ -1,0 +1,32 @@
+performance statistics graph
+
+
+org admin should be basle to set set. the voulenter comfortable languages 
+and also during the call the vaulenter can mark the donars prefered lanuages 
+
+
+vouleneter can transfer the donars to other vouleneter if they think they can be converted by other person , this is like intraction transfer 
+but the reciver vouleneter should accept the request and a notificvation will aslo go ato admin , admin should be bable to see the transfer details 
+and a transfered tag
+
+Email , and whatsapp message sent from the dash board only  to the  donar from teh respective orgs
+short message can be also sent 
+
+
+
+
+excel list upload caping wise and org admin can have equal distribution between volunteers and  team
+also and also apply and assign to respective team members
+
+
+A handover mechnaicm , like if someone is leaving the org then the org admin  can handover the interactions they have done to others partially or fully 
+
+
+
+super admin configuration for payment per admin org / per vouleneter , donars list limt 
+smtp / org wise smtp / 
+
+
+
+
+email whatsapp  configuartion and templates set by admin

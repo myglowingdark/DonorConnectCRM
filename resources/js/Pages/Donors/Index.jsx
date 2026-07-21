@@ -6,10 +6,11 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 const priorityMeta = {
-    overdue: { label: 'Overdue', className: 'bg-rose-100 text-rose-800' },
-    due_today: { label: 'Due today', className: 'bg-amber-100 text-amber-800' },
-    upcoming: { label: 'Upcoming', className: 'bg-sky-100 text-sky-800' },
-    new: { label: 'New / uncontacted', className: 'bg-teal-100 text-teal-800' },
+    overdue: { label: 'Overdue follow-up', className: 'bg-rose-100 text-rose-800' },
+    due_today: { label: 'Follow-up due today', className: 'bg-amber-100 text-amber-800' },
+    upcoming: { label: 'Upcoming follow-up', className: 'bg-sky-100 text-sky-800' },
+    new: { label: 'Never contacted', className: 'bg-teal-100 text-teal-800' },
+    cold: { label: 'Longest waiting', className: 'bg-indigo-100 text-indigo-800' },
     later: { label: 'Later', className: 'bg-slate-100 text-slate-700' },
     do_not_call: { label: 'Do not call', className: 'bg-rose-100 text-rose-800' },
 };
@@ -80,7 +81,7 @@ export default function DonorsIndex({
                 <div>
                     <h2 className="text-headline-md">Who to call next</h2>
                     <p className="text-sm text-on-surface-variant">
-                        Overdue and today’s follow-ups appear first, then new uncontacted donors.
+                        Scheduled follow-ups first. If none, donors contacted longest ago.
                     </p>
                 </div>
                 <form
@@ -112,7 +113,9 @@ export default function DonorsIndex({
                             <p className="mt-2 text-sm">
                                 {nextToCall.next_follow_up_at
                                     ? `Follow-up: ${formatDateTime(nextToCall.next_follow_up_at)}`
-                                    : 'Not contacted yet — good first call'}
+                                    : nextToCall.last_contacted_at
+                                      ? `No follow-up · last called ${formatDate(nextToCall.last_contacted_at)}`
+                                      : 'Never contacted — good first call'}
                                 {' · '}
                                 Last gift {formatINR(nextToCall.last_donation_amount)}
                             </p>
@@ -247,8 +250,8 @@ export default function DonorsIndex({
                                                 {donor.next_follow_up_at
                                                     ? formatDateTime(donor.next_follow_up_at)
                                                     : donor.last_contacted_at
-                                                      ? 'No follow-up set'
-                                                      : 'Call first time'}
+                                                      ? `Last called ${formatDate(donor.last_contacted_at)}`
+                                                      : 'Never contacted'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <StatusBadge

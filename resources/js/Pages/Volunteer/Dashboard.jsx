@@ -45,6 +45,12 @@ export default function VolunteerDashboard({
                             <h3 className="mt-2 text-2xl font-bold">{nextDonor.full_name}</h3>
                             <p className="mt-1 text-primary-fixed">{nextDonor.phone || 'No phone'}</p>
                             <p className="mt-3 text-sm">
+                                {nextDonor.next_follow_up_at
+                                    ? `Follow-up ${formatDate(nextDonor.next_follow_up_at)}`
+                                    : nextDonor.last_contacted_at
+                                      ? `Last called ${formatDate(nextDonor.last_contacted_at)}`
+                                      : 'Never contacted'}
+                                {' · '}
                                 Last donation {formatINR(nextDonor.last_donation_amount)} on{' '}
                                 {formatDate(nextDonor.last_donation_at)}
                             </p>
