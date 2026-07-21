@@ -184,10 +184,21 @@ class WordPressDonorSyncService
             return;
         }
 
+        $existing = Donor::query()
+            ->forOrganization($connection->organization_id)
+            ->where('external_donor_id', $externalId)
+            ->first();
+
+        $incomingName = (string) (data_get($record, $mappings['full_name']) ?: 'Unknown Donor');
+        // Prefer a human name over NGOBuddy token-like placeholders when updating.
+        if ($existing && $this->looksLikeTokenDonorName($incomingName) && ! $this->looksLikeTokenDonorName((string) $existing->full_name)) {
+            $incomingName = (string) $existing->full_name;
+        }
+
         $donorData = [
             'organization_id' => $connection->organization_id,
             'external_donor_id' => $externalId,
-            'full_name' => (string) (data_get($record, $mappings['full_name']) ?: 'Unknown Donor'),
+            'full_name' => $incomingName,
             'email' => data_get($record, $mappings['email']),
             'phone' => data_get($record, $mappings['phone']),
             'alternate_phone' => data_get($record, $mappings['alternate_phone']),
@@ -197,11 +208,6 @@ class WordPressDonorSyncService
             'country' => data_get($record, $mappings['country']) ?: 'India',
             'metadata' => $record,
         ];
-
-        $existing = Donor::query()
-            ->forOrganization($connection->organization_id)
-            ->where('external_donor_id', $externalId)
-            ->first();
 
         if ($existing) {
             $existing->update($donorData);
@@ -305,6 +311,19 @@ class WordPressDonorSyncService
             'last_donation_at' => $stats->last_at,
             'last_donation_amount' => $last?->amount,
         ]);
+    }
+
+    protected function looksLikeTokenDonorName(string $name): bool
+    {
+        $name = trim($name);
+        if ($name === '' || $name === 'Unknown Donor') {
+            return true;
+        }
+        if (preg_match('/\s/u', $name)) {
+            return false;
+        }
+
+        return (bool) preg_match('/^[A-Za-z0-9_-]{16,}$/', $name);
     }
 
     protected function extractRecords(mixed $payload): array

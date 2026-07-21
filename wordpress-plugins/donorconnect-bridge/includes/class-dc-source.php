@@ -63,8 +63,8 @@ class DC_Bridge_Source {
 
 		$donors = array();
 		foreach ( (array) $donor_rows as $row ) {
-			$donor_id = (int) ( $row['id'] ?? 0 );
-			$donations = array();
+			$donor_id      = (int) ( $row['id'] ?? 0 );
+			$donation_rows = array();
 
 			if ( self::table_exists( $donations_table ) && $donor_id > 0 ) {
 				$status_sql = ! empty( $settings['include_pending'] )
@@ -78,27 +78,49 @@ class DC_Bridge_Source {
 					),
 					ARRAY_A
 				);
-
-				foreach ( (array) $donation_rows as $d ) {
-					$donations[] = self::map_donation( $d, $settings );
-				}
+				$donation_rows = is_array( $donation_rows ) ? $donation_rows : array();
 			}
 
-			// Also include orphaned donations matched by email/phone later via flat scan.
-			$donors[] = array(
-				'id'              => 'ngobuddy-' . $donor_id,
-				'name'            => (string) ( $row['name'] ?? 'Unknown Donor' ),
-				'email'           => $row['email'] ?? null,
-				'phone'           => $row['phone'] ?? null,
-				'alternate_phone' => null,
-				'address'         => null,
-				'city'            => null,
-				'state'           => null,
-				'country'         => 'India',
-				'campaign'        => $settings['campaign_default'] ?: null,
-				'donations'       => $donations,
-				'source'          => 'ngobuddy',
-			);
+			// NGOBuddy often collapses many Razorpay checkouts onto one donor_id (same phone).
+			// Split CRM identities by donation email/phone snapshot so names match Razorpay.
+			$groups = self::group_donations_by_identity( $donation_rows, $row );
+
+			if ( empty( $groups ) ) {
+				// No donations: skip token-like junk rows that pollute the calling queue.
+				if ( self::looks_like_token_name( (string) ( $row['name'] ?? '' ) ) ) {
+					continue;
+				}
+				$donors[] = self::shape_donor(
+					'ngobuddy-' . $donor_id,
+					$row,
+					array(),
+					$settings,
+					'ngobuddy'
+				);
+				continue;
+			}
+
+			$group_index = 0;
+			foreach ( $groups as $identity_key => $group_rows ) {
+				$snapshot = self::best_identity_from_donations( $group_rows, $row );
+				$external = ( 0 === $group_index )
+					? 'ngobuddy-' . $donor_id
+					: 'ngobuddy-' . $donor_id . '-' . substr( md5( (string) $identity_key ), 0, 10 );
+
+				$mapped = array();
+				foreach ( $group_rows as $d ) {
+					$mapped[] = self::map_donation( $d, $settings );
+				}
+
+				$donors[] = self::shape_donor(
+					$external,
+					$snapshot,
+					$mapped,
+					$settings,
+					'ngobuddy'
+				);
+				++$group_index;
+			}
 		}
 
 		$orphans = array();
@@ -117,19 +139,19 @@ class DC_Bridge_Source {
 
 			foreach ( $orphans as $d ) {
 				$external = 'rzp-orphan-' . ( $d['razorpay_payment_id'] ?: $d['id'] );
-				$donors[] = array(
-					'id'              => $external,
-					'name'            => (string) ( $d['donor_name'] ?? 'Razorpay Donor' ),
-					'email'           => $d['donor_email'] ?? null,
-					'phone'           => $d['donor_phone'] ?? null,
-					'alternate_phone' => null,
-					'address'         => null,
-					'city'            => $d['geo_city'] ?? null,
-					'state'           => $d['geo_region'] ?? null,
-					'country'         => $d['geo_country'] ?? 'India',
-					'campaign'        => $d['utm_campaign'] ?: ( $settings['campaign_default'] ?: null ),
-					'donations'       => array( self::map_donation( $d, $settings ) ),
-					'source'          => 'razorpay_orphan',
+				$donors[] = self::shape_donor(
+					$external,
+					array(
+						'name'  => (string) ( $d['donor_name'] ?? 'Razorpay Donor' ),
+						'email' => $d['donor_email'] ?? null,
+						'phone' => $d['donor_phone'] ?? null,
+						'city'  => $d['geo_city'] ?? null,
+						'state' => $d['geo_region'] ?? null,
+						'country' => $d['geo_country'] ?? 'India',
+					),
+					array( self::map_donation( $d, $settings ) ),
+					$settings,
+					'razorpay_orphan'
 				);
 			}
 		}
@@ -140,6 +162,133 @@ class DC_Bridge_Source {
 			'page'     => $page,
 			'per_page' => $per_page,
 		);
+	}
+
+	/**
+	 * @param  list<array<string,mixed>> $donation_rows
+	 * @param  array<string,mixed>       $donor_row
+	 * @return array<string, list<array<string,mixed>>>
+	 */
+	private static function group_donations_by_identity( array $donation_rows, array $donor_row ): array {
+		$groups = array();
+		foreach ( $donation_rows as $d ) {
+			$key = self::identity_key_for_donation( $d, $donor_row );
+			if ( ! isset( $groups[ $key ] ) ) {
+				$groups[ $key ] = array();
+			}
+			$groups[ $key ][] = $d;
+		}
+
+		return $groups;
+	}
+
+	/**
+	 * @param  array<string,mixed> $donation
+	 * @param  array<string,mixed> $donor_row
+	 */
+	private static function identity_key_for_donation( array $donation, array $donor_row ): string {
+		$email = strtolower( trim( (string) ( $donation['donor_email'] ?? '' ) ) );
+		if ( $email !== '' && is_email( $email ) ) {
+			return 'email:' . $email;
+		}
+
+		$phone = preg_replace( '/\D+/', '', (string) ( $donation['donor_phone'] ?? '' ) );
+		if ( is_string( $phone ) && strlen( $phone ) >= 10 ) {
+			return 'phone:' . substr( $phone, -10 );
+		}
+
+		$fallback_email = strtolower( trim( (string) ( $donor_row['email'] ?? '' ) ) );
+		if ( $fallback_email !== '' ) {
+			return 'email:' . $fallback_email;
+		}
+
+		return 'donor:' . (string) ( $donor_row['id'] ?? '0' );
+	}
+
+	/**
+	 * Prefer denormalized Razorpay checkout snapshot over gdnb_donors.name
+	 * (which is sometimes a random token from bad/anonymous rows).
+	 *
+	 * @param  list<array<string,mixed>> $donation_rows
+	 * @param  array<string,mixed>       $donor_row
+	 * @return array<string,mixed>
+	 */
+	private static function best_identity_from_donations( array $donation_rows, array $donor_row ): array {
+		$best = null;
+		foreach ( array_reverse( $donation_rows ) as $d ) {
+			$name = trim( (string) ( $d['donor_name'] ?? '' ) );
+			if ( $name !== '' && ! self::looks_like_token_name( $name ) ) {
+				$best = $d;
+				break;
+			}
+		}
+		if ( ! $best && ! empty( $donation_rows ) ) {
+			$best = $donation_rows[ count( $donation_rows ) - 1 ];
+		}
+
+		$donor_name = (string) ( $donor_row['name'] ?? '' );
+		$name       = '';
+		if ( $best ) {
+			$name = trim( (string) ( $best['donor_name'] ?? '' ) );
+		}
+		if ( $name === '' || self::looks_like_token_name( $name ) ) {
+			if ( $donor_name !== '' && ! self::looks_like_token_name( $donor_name ) ) {
+				$name = $donor_name;
+			} elseif ( $name === '' ) {
+				$name = $donor_name !== '' ? $donor_name : 'Unknown Donor';
+			}
+		}
+
+		return array(
+			'name'  => $name,
+			'email' => $best['donor_email'] ?? ( $donor_row['email'] ?? null ),
+			'phone' => $best['donor_phone'] ?? ( $donor_row['phone'] ?? null ),
+			'city'  => $best['geo_city'] ?? null,
+			'state' => $best['geo_region'] ?? null,
+			'country' => $best['geo_country'] ?? 'India',
+		);
+	}
+
+	/**
+	 * @param  array<string,mixed>       $identity
+	 * @param  list<array<string,mixed>> $donations
+	 * @param  array<string,mixed>       $settings
+	 * @return array<string,mixed>
+	 */
+	private static function shape_donor(
+		string $external_id,
+		array $identity,
+		array $donations,
+		array $settings,
+		string $source
+	): array {
+		return array(
+			'id'              => $external_id,
+			'name'            => (string) ( $identity['name'] ?? 'Unknown Donor' ),
+			'email'           => $identity['email'] ?? null,
+			'phone'           => $identity['phone'] ?? null,
+			'alternate_phone' => null,
+			'address'         => null,
+			'city'            => $identity['city'] ?? null,
+			'state'           => $identity['state'] ?? null,
+			'country'         => $identity['country'] ?? 'India',
+			'campaign'        => $settings['campaign_default'] ?: null,
+			'donations'       => $donations,
+			'source'          => $source,
+		);
+	}
+
+	/** Random NGOBuddy tokens look like long alphanumeric strings with no spaces. */
+	public static function looks_like_token_name( string $name ): bool {
+		$name = trim( $name );
+		if ( $name === '' ) {
+			return true;
+		}
+		if ( preg_match( '/\s/u', $name ) ) {
+			return false;
+		}
+		// e.g. mUgEIGPXqrBilbsRRlCEFPn
+		return (bool) preg_match( '/^[A-Za-z0-9_-]{16,}$/', $name );
 	}
 
 	/** @param array<string,mixed> $d @param array<string,mixed> $settings */
@@ -154,30 +303,36 @@ class DC_Bridge_Source {
 		}
 
 		return array(
-			'donation_id'        => $donation_id,
-			'amount'             => (float) ( $d['amount'] ?? 0 ),
-			'currency'           => (string) ( $d['currency'] ?? 'INR' ),
-			'donated_at'         => (string) ( $d['created_at'] ?? current_time( 'mysql' ) ),
-			'payment_status'     => $status,
-			'payment_method'     => 'Razorpay',
-			'razorpay_payment_id'=> $payment_id ?: null,
-			'razorpay_order_id'  => $order_id ?: null,
-			'campaign'           => $d['utm_campaign'] ?: ( $settings['campaign_default'] ?: null ),
-			'project_id'         => $d['project_id'] ?? null,
-			'receipt_number'     => $d['receipt_number'] ?? null,
-			'is_recurring'       => ! empty( $d['is_recurring'] ),
-			'source_data'        => array(
+			'donation_id'         => $donation_id,
+			'amount'              => (float) ( $d['amount'] ?? 0 ),
+			'currency'            => (string) ( $d['currency'] ?? 'INR' ),
+			'donated_at'          => (string) ( $d['created_at'] ?? current_time( 'mysql' ) ),
+			'payment_status'      => $status,
+			'payment_method'      => 'Razorpay',
+			'razorpay_payment_id' => $payment_id ?: null,
+			'razorpay_order_id'   => $order_id ?: null,
+			'donor_name'          => $d['donor_name'] ?? null,
+			'donor_email'         => $d['donor_email'] ?? null,
+			'donor_phone'         => $d['donor_phone'] ?? null,
+			'campaign'            => $d['utm_campaign'] ?: ( $settings['campaign_default'] ?: null ),
+			'project_id'          => $d['project_id'] ?? null,
+			'receipt_number'      => $d['receipt_number'] ?? null,
+			'is_recurring'        => ! empty( $d['is_recurring'] ),
+			'source_data'         => array(
 				'utm_source'   => $d['utm_source'] ?? null,
 				'utm_medium'   => $d['utm_medium'] ?? null,
 				'utm_campaign' => $d['utm_campaign'] ?? null,
 				'landing_url'  => $d['landing_url'] ?? null,
+				'donor_name'   => $d['donor_name'] ?? null,
+				'donor_email'  => $d['donor_email'] ?? null,
+				'donor_phone'  => $d['donor_phone'] ?? null,
 			),
 		);
 	}
 
 	private static function table_exists( string $table ): bool {
 		global $wpdb;
-		$like = $wpdb->esc_like( $table );
+		$like  = $wpdb->esc_like( $table );
 		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) );
 
 		return $found === $table;
