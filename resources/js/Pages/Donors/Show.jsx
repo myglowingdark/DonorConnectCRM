@@ -89,6 +89,10 @@ export default function DonorShow({
     const languageLabel =
         languages.find((l) => l.value === donor.preferred_language)?.label || donor.preferred_language;
 
+    const selectedOutcome = outcomes.find((o) => o.value === data.outcome);
+    const needsAmount = ['pledged', 'donated'].includes(data.outcome);
+    const needsFollowUp = ['callback_requested', 'interested', 'busy', 'no_answer'].includes(data.outcome);
+
     return (
         <AuthenticatedLayout header="Donor Profile">
             <Head title={donor.full_name} />
@@ -424,125 +428,192 @@ export default function DonorShow({
                     </section>
                 </div>
 
-                <aside className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card xl:sticky xl:top-24 xl:self-start">
-                    <h3 className="mb-1 font-semibold">Log call</h3>
-                    <p className="mb-4 text-xs text-on-surface-variant">Fast entry after your external phone call.</p>
-
-                    <fieldset disabled={donor.do_not_call || processing} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-2">
-                            {outcomes.map((outcome) => (
-                                <button
-                                    key={outcome.value}
-                                    type="button"
-                                    onClick={() => setData('outcome', outcome.value)}
-                                    className={`rounded-xl border px-2 py-3 text-left text-xs ${
-                                        data.outcome === outcome.value
-                                            ? 'border-primary bg-primary/5 text-primary'
-                                            : 'border-slate-200'
-                                    }`}
-                                >
-                                    <span className="material-symbols-outlined mb-1 block text-[18px]">
-                                        {outcome.icon}
-                                    </span>
-                                    {outcome.label}
-                                </button>
-                            ))}
+                <aside className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card xl:sticky xl:top-24 xl:self-start">
+                    <div className="border-b border-slate-100 bg-surface-container-low/60 px-5 py-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 className="font-semibold tracking-tight">Log call</h3>
+                                <p className="mt-0.5 text-xs text-on-surface-variant">
+                                    After your external call, pick an outcome and save.
+                                </p>
+                            </div>
+                            <span className="material-symbols-outlined text-primary/70">call_log</span>
                         </div>
+                        {selectedOutcome && (
+                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                                <span className="material-symbols-outlined text-[14px]">{selectedOutcome.icon}</span>
+                                {selectedOutcome.label}
+                            </div>
+                        )}
+                    </div>
 
+                    <fieldset disabled={donor.do_not_call || processing} className="space-y-5 p-5">
                         <div>
-                            <label className="text-xs font-semibold text-on-surface-variant">Preferred language</label>
-                            <select
-                                value={data.preferred_language}
-                                onChange={(e) => setData('preferred_language', e.target.value)}
-                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
-                            >
-                                <option value="">Unknown / not set</option>
-                                {languages.map((lang) => (
-                                    <option key={lang.value} value={lang.value}>
-                                        {lang.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">
+                                Outcome
+                            </p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {outcomes.map((outcome) => {
+                                    const active = data.outcome === outcome.value;
+                                    const danger = ['do_not_call', 'wrong_number', 'not_interested'].includes(
+                                        outcome.value,
+                                    );
+                                    const success = ['pledged', 'donated', 'interested'].includes(outcome.value);
+
+                                    return (
+                                        <button
+                                            key={outcome.value}
+                                            type="button"
+                                            onClick={() => setData('outcome', outcome.value)}
+                                            title={outcome.label}
+                                            className={`flex flex-col items-center gap-1 rounded-xl border px-1.5 py-2.5 text-center transition ${
+                                                active
+                                                    ? danger
+                                                        ? 'border-rose-500 bg-rose-50 text-rose-800 ring-1 ring-rose-500/30'
+                                                        : success
+                                                          ? 'border-secondary bg-secondary/10 text-secondary ring-1 ring-secondary/30'
+                                                          : 'border-primary bg-primary/5 text-primary ring-1 ring-primary/30'
+                                                    : 'border-slate-200 text-on-surface hover:border-slate-300 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px] leading-none">
+                                                {outcome.icon}
+                                            </span>
+                                            <span className="line-clamp-2 text-[10px] font-medium leading-tight">
+                                                {outcome.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {errors.outcome && <p className="mt-2 text-xs text-error">{errors.outcome}</p>}
                         </div>
 
-                        <div>
-                            <label className="text-xs font-semibold text-on-surface-variant">Notes</label>
-                            <textarea
-                                value={data.notes}
-                                onChange={(e) => setData('notes', e.target.value)}
-                                rows={4}
-                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
-                            />
-                            {errors.notes && <p className="mt-1 text-xs text-error">{errors.notes}</p>}
-                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-on-surface-variant">
+                                    Notes
+                                </label>
+                                <textarea
+                                    value={data.notes}
+                                    onChange={(e) => setData('notes', e.target.value)}
+                                    rows={3}
+                                    placeholder="What was said…"
+                                    className="w-full rounded-xl border-slate-200 text-sm focus:border-secondary focus:ring-secondary"
+                                />
+                                {errors.notes && <p className="mt-1 text-xs text-error">{errors.notes}</p>}
+                            </div>
 
-                        <div>
-                            <label className="text-xs font-semibold text-on-surface-variant">Follow-up</label>
-                            <input
-                                type="datetime-local"
-                                value={data.follow_up_at}
-                                onChange={(e) => setData('follow_up_at', e.target.value)}
-                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
-                            />
-                            {errors.follow_up_at && <p className="mt-1 text-xs text-error">{errors.follow_up_at}</p>}
-                        </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                <div>
+                                    <label className="mb-1 block text-xs font-semibold text-on-surface-variant">
+                                        Language
+                                    </label>
+                                    <select
+                                        value={data.preferred_language}
+                                        onChange={(e) => setData('preferred_language', e.target.value)}
+                                        className="w-full rounded-xl border-slate-200 text-sm focus:border-secondary focus:ring-secondary"
+                                    >
+                                        <option value="">Not set</option>
+                                        {languages.map((lang) => (
+                                            <option key={lang.value} value={lang.value}>
+                                                {lang.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-xs font-semibold text-on-surface-variant">
+                                        Campaign
+                                    </label>
+                                    <select
+                                        value={data.campaign_id}
+                                        onChange={(e) => setData('campaign_id', e.target.value)}
+                                        className="w-full rounded-xl border-slate-200 text-sm focus:border-secondary focus:ring-secondary"
+                                    >
+                                        <option value="">None</option>
+                                        {campaigns.map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
 
-                        <div>
-                            <label className="text-xs font-semibold text-on-surface-variant">Pledged amount (₹)</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={data.pledged_amount}
-                                onChange={(e) => setData('pledged_amount', e.target.value)}
-                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
-                            />
-                        </div>
+                            {(needsFollowUp || data.follow_up_at) && (
+                                <div>
+                                    <label className="mb-1 flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+                                        <span className="material-symbols-outlined text-[14px]">event</span>
+                                        Follow-up
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        value={data.follow_up_at}
+                                        onChange={(e) => setData('follow_up_at', e.target.value)}
+                                        className="w-full rounded-xl border-slate-200 text-sm focus:border-secondary focus:ring-secondary"
+                                    />
+                                    {errors.follow_up_at && (
+                                        <p className="mt-1 text-xs text-error">{errors.follow_up_at}</p>
+                                    )}
+                                </div>
+                            )}
 
-                        <div>
-                            <label className="text-xs font-semibold text-on-surface-variant">Campaign</label>
-                            <select
-                                value={data.campaign_id}
-                                onChange={(e) => setData('campaign_id', e.target.value)}
-                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
-                            >
-                                <option value="">None</option>
-                                {campaigns.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                            {needsAmount && (
+                                <div>
+                                    <label className="mb-1 flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+                                        <span className="material-symbols-outlined text-[14px]">currency_rupee</span>
+                                        Amount (₹)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={data.pledged_amount}
+                                        onChange={(e) => setData('pledged_amount', e.target.value)}
+                                        placeholder="0"
+                                        className="w-full rounded-xl border-slate-200 text-sm focus:border-secondary focus:ring-secondary"
+                                    />
+                                </div>
+                            )}
 
-                        <label className="flex items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={data.attribute_donation}
-                                onChange={(e) => setData('attribute_donation', e.target.checked)}
-                            />
-                            Attribute future donation to me (Phase 2)
-                        </label>
-
-                        {errors.outcome && <p className="text-xs text-error">{errors.outcome}</p>}
-
-                        <div className="flex flex-col gap-2">
-                            <button
-                                type="button"
-                                onClick={() => submit(false)}
-                                className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                            >
-                                Save outcome
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => submit(true)}
-                                disabled={!nextDonorId}
-                                className="rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                            >
-                                Save + Next Donor
-                            </button>
+                            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs leading-snug text-on-surface-variant">
+                                <input
+                                    type="checkbox"
+                                    checked={data.attribute_donation}
+                                    onChange={(e) => setData('attribute_donation', e.target.checked)}
+                                    className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
+                                />
+                                <span>
+                                    <span className="font-semibold text-on-surface">Credit me on future donation</span>
+                                    <span className="mt-0.5 block text-[11px]">Optional attribution for this outreach.</span>
+                                </span>
+                            </label>
                         </div>
                     </fieldset>
+
+                    <div className="space-y-2 border-t border-slate-100 bg-surface-container-low/40 p-4">
+                        <button
+                            type="button"
+                            onClick={() => submit(false)}
+                            disabled={donor.do_not_call || processing}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">save</span>
+                            Save outcome
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => submit(true)}
+                            disabled={donor.do_not_call || processing || !nextDonorId}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">skip_next</span>
+                            Save + next donor
+                        </button>
+                        {!nextDonorId && (
+                            <p className="text-center text-[11px] text-on-surface-variant">No next donor in queue</p>
+                        )}
+                    </div>
                 </aside>
             </div>
 
