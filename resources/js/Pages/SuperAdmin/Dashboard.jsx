@@ -31,6 +31,21 @@ export default function SuperAdminDashboard({ organizations, stats }) {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {organizations.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-8 text-center shadow-card md:col-span-2 xl:col-span-3">
+                        <span className="material-symbols-outlined mb-3 text-4xl text-outline">apartment</span>
+                        <h3 className="text-lg font-semibold">No organizations yet</h3>
+                        <p className="mt-1 text-sm text-on-surface-variant">
+                            Create your first organization to add donors, volunteers, and WordPress sync.
+                        </p>
+                        <Link
+                            href={route('organizations.create')}
+                            className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                        >
+                            Create organization
+                        </Link>
+                    </div>
+                )}
                 {organizations.map((org) => (
                     <div key={org.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                         <div className="mb-4 flex items-start justify-between">

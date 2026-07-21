@@ -91,6 +91,7 @@ const superAdminNav = [
     {
         label: 'Calling',
         icon: 'phone_in_talk',
+        requiresOrg: true,
         children: [
             { href: 'donors.index', label: 'Donors', icon: 'groups' },
             { href: 'assignments.index', label: 'Assignments', icon: 'assignment_ind' },
@@ -102,6 +103,7 @@ const superAdminNav = [
     {
         label: 'Payments',
         icon: 'payments',
+        requiresOrg: true,
         children: [
             { href: 'commissions.settings', label: 'Commissions', icon: 'percent' },
             { href: 'commissions.cycles', label: 'Cycles', icon: 'calendar_month' },
@@ -111,6 +113,7 @@ const superAdminNav = [
     {
         label: 'Messaging',
         icon: 'sms',
+        requiresOrg: true,
         children: [
             { href: 'messaging.settings', label: 'Channels', icon: 'sms' },
             { href: 'email-reports.index', label: 'Email reports', icon: 'forward_to_inbox' },
@@ -119,6 +122,7 @@ const superAdminNav = [
     {
         label: 'Insights',
         icon: 'analytics',
+        requiresOrg: true,
         children: [
             { href: 'reports.index', label: 'Reports', icon: 'analytics' },
             { href: 'campaigns.index', label: 'Campaigns', icon: 'campaign' },
@@ -129,6 +133,7 @@ const superAdminNav = [
     {
         label: 'Platform',
         icon: 'settings',
+        requiresOrg: true,
         children: [
             { href: 'billing.index', label: 'Billing', icon: 'receipt_long' },
             { href: 'api-tokens.index', label: 'API keys', icon: 'key', feature: 'api' },
@@ -142,6 +147,9 @@ const superAdminNav = [
 function filterNavByFeatures(items, features = [], currentOrganization = null) {
     return items
         .map((item) => {
+            if (item.requiresOrg && !currentOrganization?.id) {
+                return null;
+            }
             if (item.children) {
                 const children = filterNavByFeatures(item.children, features, currentOrganization);
                 if (children.length === 0) return null;

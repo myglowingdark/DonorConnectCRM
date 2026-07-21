@@ -1,12 +1,30 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function OrgSwitcher() {
-    const { currentOrganization, organizations } = usePage().props;
+    const { auth, currentOrganization, organizations = [] } = usePage().props;
     const [open, setOpen] = useState(false);
+    const isSuperAdmin = auth?.user?.role === 'super_admin';
 
     if (!currentOrganization) {
-        return null;
+        if (!isSuperAdmin) {
+            return null;
+        }
+
+        return (
+            <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-3">
+                <p className="text-xs font-semibold text-on-surface">No organization yet</p>
+                <p className="mt-1 text-[11px] text-on-surface-variant">
+                    Create an organization to start calling and syncing donors.
+                </p>
+                <Link
+                    href={route('organizations.create')}
+                    className="mt-2 inline-flex text-xs font-semibold text-secondary"
+                >
+                    Create organization →
+                </Link>
+            </div>
+        );
     }
 
     const switchTo = (organizationId) => {

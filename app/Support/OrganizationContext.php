@@ -32,12 +32,23 @@ class OrganizationContext
         session(['current_organization_id' => $organizationId]);
     }
 
+    /**
+     * Resolve a valid current organization for the user.
+     * Clears stale session IDs (e.g. after orgs were wiped).
+     */
     public static function ensureFor(User $user): ?Organization
     {
         $currentId = self::id();
 
-        if ($currentId && $user->belongsToOrganization($currentId)) {
-            return Organization::query()->find($currentId);
+        if ($currentId) {
+            $current = Organization::query()->find($currentId);
+
+            if ($current && $user->belongsToOrganization($current->id)) {
+                return $current;
+            }
+
+            // Stale / deleted org id in session.
+            self::set(null);
         }
 
         if ($user->isSuperAdmin()) {
