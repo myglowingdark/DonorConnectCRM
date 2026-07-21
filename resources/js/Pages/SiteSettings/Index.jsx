@@ -108,6 +108,11 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
 
             <section className="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
                 <h3 className="font-semibold">Email / SMTP</h3>
+                <p className="text-xs text-on-surface-variant">
+                    EmailsBit: host <code>smtp.emailsbit.com</code>, try <code>588</code> + TLS first, or{' '}
+                    <code>505</code> + SSL. Auth type LOGIN. “Connection refused” means this web host is blocking
+                    outbound SMTP to that port — try the other port, or ask hosting to allow it.
+                </p>
                 <label className="flex items-center gap-2 text-sm">
                     <input
                         type="checkbox"
@@ -131,32 +136,34 @@ function MessagingTab({ messaging, webhookUrl, verifyTokenHint, embeddedSignup, 
                     />
                     <input
                         className="rounded-xl border-slate-200"
-                        placeholder="SMTP host"
+                        placeholder="SMTP host (e.g. smtp.emailsbit.com)"
                         value={form.data.smtp_host}
                         onChange={(e) => form.setData('smtp_host', e.target.value)}
                     />
                     <input
                         className="rounded-xl border-slate-200"
-                        placeholder="Port"
+                        placeholder="Port (588 or 505 for EmailsBit)"
                         type="number"
                         value={form.data.smtp_port}
                         onChange={(e) => form.setData('smtp_port', e.target.value)}
                     />
-                    <input
+                    <select
                         className="rounded-xl border-slate-200"
-                        placeholder="Encryption (tls/ssl)"
-                        value={form.data.smtp_encryption}
+                        value={form.data.smtp_encryption || 'tls'}
                         onChange={(e) => form.setData('smtp_encryption', e.target.value)}
-                    />
+                    >
+                        <option value="tls">TLS — EmailsBit port 588</option>
+                        <option value="ssl">SSL — EmailsBit port 505</option>
+                    </select>
                     <input
                         className="rounded-xl border-slate-200"
-                        placeholder="Username"
+                        placeholder="Username (often API key)"
                         value={form.data.smtp_username}
                         onChange={(e) => form.setData('smtp_username', e.target.value)}
                     />
                     <input
                         className="rounded-xl border-slate-200 md:col-span-2"
-                        placeholder={messaging.has_smtp_password ? 'Password (leave blank to keep)' : 'Password'}
+                        placeholder={messaging.has_smtp_password ? 'Password (leave blank to keep)' : 'Password / API key'}
                         type="password"
                         value={form.data.smtp_password}
                         onChange={(e) => form.setData('smtp_password', e.target.value)}

@@ -100,8 +100,8 @@ export default function MessagingSettings({
                 <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                     <h3 className="mb-1 font-semibold">Organization SMTP</h3>
                     <p className="mb-4 text-xs text-on-surface-variant">
-                        Optional. Leave host blank to use platform SMTP. When using platform SMTP, messages send from
-                        the platform From address (not a From-only org setting). Save before testing.
+                        Optional. Leave host blank to use platform SMTP. EmailsBit: <code>smtp.emailsbit.com</code>,
+                        port <code>588</code> + TLS (or <code>505</code> + SSL). Save before testing.
                     </p>
                     <div className="grid gap-3 md:grid-cols-2">
                         <input

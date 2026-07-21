@@ -468,7 +468,7 @@ class MessageService
             }
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
-                'smtp' => 'SMTP test failed: '.$e->getMessage(),
+                'smtp' => 'SMTP test failed: '.$this->formatSmtpException($e),
             ]);
         }
 
@@ -508,7 +508,7 @@ class MessageService
             );
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
-                'smtp' => 'SMTP test failed: '.$e->getMessage(),
+                'smtp' => 'SMTP test failed: '.$this->formatSmtpException($e),
             ]);
         }
 
@@ -637,7 +637,7 @@ class MessageService
             }
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
-                'body' => 'SMTP rejected the donor email: '.$e->getMessage(),
+                'body' => 'SMTP rejected the donor email: '.$this->formatSmtpException($e),
             ]);
         }
 
@@ -666,18 +666,43 @@ class MessageService
      */
     protected function configureSmtpMailer(string $mailer, $smtp): void
     {
+        $port = (int) ($smtp->smtp_port ?: 587);
+        $encryption = strtolower((string) ($smtp->smtp_encryption ?: 'tls'));
+
+        // Laravel 12 uses DSN scheme (smtp = STARTTLS, smtps = implicit TLS), not "encryption".
+        $scheme = match ($encryption) {
+            'ssl', 'smtps' => 'smtps',
+            'none', 'null', '' => 'smtp',
+            default => $port === 465 ? 'smtps' : 'smtp',
+        };
+
         Config::set("mail.mailers.{$mailer}", [
             'transport' => 'smtp',
+            'scheme' => $scheme,
             'host' => $smtp->smtp_host,
-            'port' => $smtp->smtp_port ?: 587,
-            'encryption' => $smtp->smtp_encryption ?: 'tls',
+            'port' => $port,
             'username' => $smtp->smtp_username,
             'password' => $smtp->smtp_password,
-            'timeout' => null,
+            'timeout' => 20,
         ]);
 
         // Drop any previously resolved mailer instance so runtime Config::set is applied.
         Mail::purge($mailer);
+    }
+
+    protected function formatSmtpException(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains(strtolower($message), 'connection refused')
+            || str_contains(strtolower($message), 'unable to connect')) {
+            return $message
+                .' — The app server could not open a TCP connection to that SMTP host/port. '
+                .'Confirm the provider’s host/port (EmailsBit/Sendcorex often uses 587+TLS or 465+SSL; some accounts use 505). '
+                .'If the port is correct, ask your hosting provider to allow outbound SMTP to that host:port (many shared hosts block it).';
+        }
+
+        return $message;
     }
 
     /**
