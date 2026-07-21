@@ -5,17 +5,11 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
-    const assetUrl = env.ASSET_URL || env.APP_URL || '';
-    let base = '/build/';
 
-    try {
-        if (assetUrl) {
-            const pathname = new URL(assetUrl).pathname.replace(/\/$/, '');
-            base = `${pathname}/build/`;
-        }
-    } catch {
-        // keep default /build/
-    }
+    // Live docroot is /public → assets must be /build/...
+    // For local MAMP subdirectory installs only, set VITE_BASE=/DRM/public/build/
+    // Do NOT derive base from APP_URL — that bakes local paths into production builds.
+    const base = (env.VITE_BASE || '/build/').replace(/\/?$/, '/');
 
     return {
         base,

@@ -274,11 +274,17 @@ export default function SyncSettings({
                         <div className="space-y-2 text-sm">
                             <StatusBadge status={connection.sync_status} label={connection.sync_status} />
                             <p>Last synced: {formatDateTime(connection.last_synced_at)}</p>
-                            {connection.last_error && (
-                                <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">
-                                    {connection.last_error}
-                                </p>
-                            )}
+                        {connection?.credentials_readable === false && (
+                            <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+                                Saved bridge secrets cannot be read (encryption key mismatch). Paste Site ID, API key,
+                                and HMAC secret from WordPress, then Save connection.
+                            </p>
+                        )}
+                        {connection?.last_error && (
+                            <p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-700">
+                                {connection.last_error}
+                            </p>
+                        )}
                         </div>
                     ) : (
                         <p className="text-sm text-on-surface-variant">Save a connection to see sync status.</p>

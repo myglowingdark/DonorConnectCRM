@@ -40,6 +40,20 @@ class WordPressDonorSyncService
     public function testConnection(OrganizationApiConnection $connection): array
     {
         try {
+            $credentials = $connection->safeCredentials();
+            if ($credentials === null) {
+                return [
+                    'ok' => false,
+                    'message' => 'Saved credentials cannot be decrypted. Re-enter Site ID, API key, and HMAC secret, then Save.',
+                ];
+            }
+            if ($connection->auth_type === ApiAuthType::Hmac && blank($credentials['api_key'] ?? $credentials['key'] ?? null)) {
+                return [
+                    'ok' => false,
+                    'message' => 'API key is missing. Paste the key from WP Admin → DonorConnect → Reveal secrets, then Save.',
+                ];
+            }
+
             $healthUrl = rtrim($connection->base_url, '/').'/health';
             $response = $this->signedRequest($connection, 'GET', $healthUrl);
 
@@ -64,11 +78,26 @@ class WordPressDonorSyncService
                 return ['ok' => true, 'message' => 'Connection successful.', 'status' => $response->status()];
             }
 
+            $body = $response->json() ?? $response->body();
+            $detail = is_array($body)
+                ? (string) ($body['message'] ?? json_encode($body))
+                : (string) $body;
+
+            $message = 'Connection failed: HTTP '.$response->status();
+            if ($response->status() === 401) {
+                $message = 'WordPress rejected the API key/HMAC (HTTP 401). Re-copy secrets from WP Admin → DonorConnect and Save again.';
+                if ($detail !== '') {
+                    $message .= ' '.$detail;
+                }
+            } elseif ($detail !== '') {
+                $message .= ' '.$detail;
+            }
+
             return [
                 'ok' => false,
-                'message' => 'Connection failed: HTTP '.$response->status(),
+                'message' => $message,
                 'status' => $response->status(),
-                'body' => $response->json() ?? $response->body(),
+                'body' => $body,
             ];
         } catch (Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];

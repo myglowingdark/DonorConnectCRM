@@ -57,7 +57,8 @@ class OrganizationApiConnection extends Model
 
     public function toSafeArray(): array
     {
-        $credentials = $this->credentials ?? [];
+        $credentials = $this->safeCredentials();
+        $readable = is_array($credentials);
 
         return [
             'id' => $this->id,
@@ -65,8 +66,9 @@ class OrganizationApiConnection extends Model
             'name' => $this->name,
             'base_url' => $this->base_url,
             'auth_type' => $this->auth_type?->value,
-            'has_credentials' => ! empty($credentials['api_key'] ?? $credentials['key'] ?? $credentials['token'] ?? $credentials['hmac_secret'] ?? null),
-            'site_id' => $credentials['site_id'] ?? null,
+            'has_credentials' => $readable && ! empty($credentials['api_key'] ?? $credentials['key'] ?? $credentials['token'] ?? $credentials['hmac_secret'] ?? null),
+            'site_id' => $readable ? ($credentials['site_id'] ?? null) : null,
+            'credentials_readable' => $readable,
             'field_mappings' => $this->field_mappings,
             'sync_settings' => $this->sync_settings,
             'last_synced_at' => $this->last_synced_at?->toIso8601String(),
@@ -74,5 +76,19 @@ class OrganizationApiConnection extends Model
             'last_error' => $this->last_error,
             'is_active' => $this->is_active,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null Null when encrypted payload cannot be decrypted (e.g. APP_KEY mismatch).
+     */
+    public function safeCredentials(): ?array
+    {
+        try {
+            $credentials = $this->credentials;
+
+            return is_array($credentials) ? $credentials : [];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }
