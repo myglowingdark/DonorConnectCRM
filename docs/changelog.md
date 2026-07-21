@@ -15,7 +15,7 @@
 
 ## 2026-07-21 — MVP foundation
 
-- Laravel 13 + Breeze Inertia React scaffold on MySQL `drm`
+- Laravel 12 + Breeze Inertia React scaffold on MySQL `drm` (downgraded from Laravel 13 for PHP 8.3 shared hosting)
 - Multi-tenant organizations, roles, policies, org switcher
 - Volunteer calling workflow (queue, profile, log call, Save+Next, DNC)
 - Admin assignments with equal distribute

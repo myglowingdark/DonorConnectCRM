@@ -2,7 +2,7 @@
 
 Multi-tenant Donor Relationship Management portal for telecalling volunteers and organization admins.
 
-**Stack:** Laravel 13 · Breeze (Inertia + React) · Tailwind CSS · MySQL (`drm`) · PHP 8.4+
+**Stack:** Laravel 12 · Breeze (Inertia + React) · Tailwind CSS · MySQL (`drm`) · PHP 8.2+ (8.3 recommended)
 
 ## Quick start (MAMP)
 

@@ -1,0 +1,115 @@
+name: Deploy to Bluehost
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_mysql, openssl, tokenizer, xml, ctype, json, bcmath, fileinfo, curl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Install JS dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Prepare deploy package
+        run: |
+          mkdir -p .deploy
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.deploy' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='storage/logs/*' \
+            --exclude='storage/framework/cache/data/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/views/*' \
+            --exclude='phpunit.xml' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='nextfeatures.txt' \
+            --exclude='ui_design' \
+            --exclude='wordpress-plugins' \
+            ./ .deploy/
+
+          mkdir -p \
+            .deploy/storage/framework/{cache,sessions,views,testing} \
+            .deploy/storage/logs \
+            .deploy/storage/app/public \
+            .deploy/bootstrap/cache
+
+          touch \
+            .deploy/storage/logs/.gitkeep \
+            .deploy/storage/framework/cache/.gitkeep \
+            .deploy/storage/framework/sessions/.gitkeep \
+            .deploy/storage/framework/views/.gitkeep
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload files to Bluehost
+        run: |
+          # --exclude keeps server-only files (especially .env) safe with --delete
+          rsync -az --delete \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='storage/app/public/**' \
+            --exclude='storage/logs/**' \
+            --exclude='storage/framework/cache/data/**' \
+            --exclude='storage/framework/sessions/**' \
+            --exclude='storage/framework/views/**' \
+            -e "ssh -p ${SSH_PORT:-22} -i ~/.ssh/id_rsa" \
+            .deploy/ \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/"
+
+      - name: Run post-deploy commands
+        run: |
+          ssh -p "${SSH_PORT:-22}" -i ~/.ssh/id_rsa \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd '${DEPLOY_PATH}' && \
+             php artisan migrate --force && \
+             php artisan storage:link || true && \
+             php artisan config:cache && \
+             php artisan route:cache && \
+             php artisan view:cache && \
+             php artisan queue:restart || true && \
+             chmod -R ug+rwx storage bootstrap/cache || true"

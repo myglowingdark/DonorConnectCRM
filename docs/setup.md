@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- PHP 8.4+ (Laravel 13; use MAMP PHP 8.4.1)
+- PHP 8.2+ (Laravel 12; PHP 8.3 recommended for Bluehost)
 - Composer
 - Node.js 20+
 - MySQL 8 (MAMP)
