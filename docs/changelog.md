@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-21 — WordPress sync actions 500 fix
+
+- Root cause: Laravel resolves controller deps then `array_values()`s them. Injecting
+  `WordPressDonorSyncService` *after* `{organization}` / `{connection}` made Test / Razorpay
+  actions TypeError (HTTP 500) on org-scoped routes. Sync worked because it had no extra DI.
+- Fix: resolve services with `app()` inside action handlers; wrap actions in try/catch.
+- Vite `base` no longer derived from APP_URL (was baking `/DRM/public/build/` into live assets).
+- After deploy on live: `php artisan route:clear && php artisan optimize:clear`
+
 ## 2026-07-21 — Logout fix
 
 - Set `APP_URL` to MAMP path `http://localhost:8888/DRM/public` so Ziggy logout URL is correct
