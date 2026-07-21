@@ -820,4 +820,91 @@ class DonorMessagingTest extends TestCase
 
         $this->assertSame(MetaTemplateStatus::Pending, $template->fresh()->meta_status);
     }
+
+    public function test_admin_can_create_email_template_with_formdata_style_booleans(): void
+    {
+        Storage::fake('public');
+
+        $org = Organization::factory()->create();
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        // Mimics Inertia forceFormData payloads (string booleans / empty false).
+        $this->post(route('messaging.templates.store'), [
+            'name' => 'Receipt email',
+            'channel' => MessageChannel::Email->value,
+            'subject' => 'Your receipt',
+            'body' => 'Thanks {{name}}, see {{receipt}}',
+            'is_active' => '1',
+            'remove_attachment' => 'false',
+            'attachment' => UploadedFile::fake()->create('receipt.pdf', 120, 'application/pdf'),
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('message_templates', [
+            'organization_id' => $org->id,
+            'name' => 'Receipt email',
+            'channel' => 'email',
+            'header_format' => 'document',
+            'is_active' => 1,
+        ]);
+
+        $template = MessageTemplate::query()->where('name', 'Receipt email')->first();
+        $this->assertNotNull($template);
+        $this->assertTrue($template->has_attachment);
+        $this->assertNotNull($template->attachment_path);
+    }
+
+    public function test_admin_can_test_org_smtp_connection(): void
+    {
+        Mail::fake();
+
+        $org = Organization::factory()->create(['name' => 'Hope Foundation']);
+        $admin = User::factory()->orgAdmin()->create(['email' => 'admin@hope.test']);
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        OrganizationMessagingSetting::query()->create([
+            'organization_id' => $org->id,
+            'email_enabled' => true,
+            'smtp_host' => 'smtp.org.test',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'smtp_username' => 'org-user',
+            'smtp_password' => 'secret',
+            'from_email' => 'noreply@hope.test',
+            'from_name' => 'Hope Foundation',
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->post(route('messaging.smtp.test'))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+    }
+
+    public function test_super_admin_can_test_platform_smtp_connection(): void
+    {
+        Mail::fake();
+
+        $super = User::factory()->superAdmin()->create(['email' => 'super@drm.test']);
+
+        PlatformMessagingSetting::current()->update([
+            'email_enabled' => true,
+            'smtp_host' => 'smtp.platform.test',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'smtp_username' => 'platform',
+            'smtp_password' => 'secret',
+            'from_email' => 'platform@donorconnect.test',
+            'from_name' => 'DonorConnect',
+        ]);
+
+        $this->actingAs($super)
+            ->post(route('site-settings.messaging.smtp.test'))
+            ->assertRedirect(route('site-settings.index', ['tab' => 'messaging']))
+            ->assertSessionHas('success');
+    }
 }

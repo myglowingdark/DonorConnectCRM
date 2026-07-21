@@ -48,6 +48,7 @@ const adminNav = [
         icon: 'sms',
         children: [
             { href: 'messaging.settings', label: 'Channels', icon: 'sms' },
+            { href: 'messaging.templates', label: 'Manage templates', icon: 'description' },
             { href: 'email-reports.index', label: 'Email reports', icon: 'forward_to_inbox' },
         ],
     },
@@ -115,6 +116,7 @@ const superAdminNav = [
         requiresOrg: true,
         children: [
             { href: 'messaging.settings', label: 'Channels', icon: 'sms' },
+            { href: 'messaging.templates', label: 'Manage templates', icon: 'description' },
             { href: 'email-reports.index', label: 'Email reports', icon: 'forward_to_inbox' },
         ],
     },

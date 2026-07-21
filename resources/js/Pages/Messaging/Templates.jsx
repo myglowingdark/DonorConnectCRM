@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import StatusBadge from '@/Components/StatusBadge';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const emptyForm = {
     name: '',
@@ -16,6 +16,16 @@ const emptyForm = {
     attachment: null,
     remove_attachment: false,
 };
+
+const templateVariables = [
+    { token: '{{name}}', label: 'name' },
+    { token: '{{org}}', label: 'org' },
+    { token: '{{volunteer}}', label: 'volunteer' },
+    { token: '{{phone}}', label: 'phone' },
+    { token: '{{email}}', label: 'email' },
+    { token: '{{donation_link}}', label: 'donation_link' },
+    { token: '{{receipt}}', label: 'receipt' },
+];
 
 const watiStatusStyles = {
     draft: 'bg-slate-100 text-slate-600 ring-slate-200',
@@ -84,7 +94,28 @@ export default function MessagingTemplates({
     const [actionId, setActionId] = useState(null);
     const [actionKind, setActionKind] = useState(null);
     const [actionError, setActionError] = useState(null);
+    const bodyRef = useRef(null);
     const form = useForm({ ...emptyForm });
+
+    const insertVariable = (token) => {
+        const el = bodyRef.current;
+        const current = form.data.body || '';
+        if (!el) {
+            form.setData('body', `${current}${token}`);
+            return;
+        }
+
+        const start = el.selectionStart ?? current.length;
+        const end = el.selectionEnd ?? current.length;
+        const next = `${current.slice(0, start)}${token}${current.slice(end)}`;
+        form.setData('body', next);
+
+        requestAnimationFrame(() => {
+            el.focus();
+            const cursor = start + token.length;
+            el.setSelectionRange(cursor, cursor);
+        });
+    };
 
     const statusLabels = useMemo(() => {
         return Object.fromEntries(metaStatuses.map((s) => [s.value, s.label]));
@@ -313,6 +344,7 @@ export default function MessagingTemplates({
                         </>
                     )}
                     <textarea
+                        ref={bodyRef}
                         className="w-full rounded-xl border-slate-200"
                         rows={6}
                         placeholder={
@@ -324,6 +356,24 @@ export default function MessagingTemplates({
                         onChange={(e) => form.setData('body', e.target.value)}
                         required
                     />
+                    <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-on-surface-variant">
+                            Variables — click to insert at cursor
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {templateVariables.map((variable) => (
+                                <button
+                                    key={variable.token}
+                                    type="button"
+                                    onClick={() => insertVariable(variable.token)}
+                                    className="rounded-full border border-[#25D366]/30 bg-[#f0fdf6] px-2.5 py-1 font-mono text-[11px] font-semibold text-[#128C7E] hover:border-[#25D366] hover:bg-[#dcf8c6]"
+                                    title={`Insert ${variable.token}`}
+                                >
+                                    {variable.token}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     {supportsAttachment && (
                         <div className="space-y-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-3">
                             <label className="block text-sm font-medium text-on-surface">
