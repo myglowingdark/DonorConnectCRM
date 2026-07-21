@@ -4,7 +4,14 @@ import StatusBadge from '@/Components/StatusBadge';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function UsersIndex({ users, filters, roles, allOrganizations, canManageAllOrganizations }) {
+export default function UsersIndex({
+    users,
+    filters,
+    roles,
+    allOrganizations,
+    canManageAllOrganizations,
+    languages = [],
+}) {
     const { auth, currentOrganization } = usePage().props;
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -14,6 +21,7 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
         name: '',
         email: '',
         phone: '',
+        languages: [],
         password: '',
         password_confirmation: '',
         role: 'volunteer',
@@ -28,6 +36,7 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
             name: '',
             email: '',
             phone: '',
+            languages: [],
             password: '',
             password_confirmation: '',
             role: 'volunteer',
@@ -50,6 +59,7 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
             name: user.name,
             email: user.email,
             phone: user.phone || '',
+            languages: user.languages || [],
             password: '',
             password_confirmation: '',
             role: user.role,
@@ -58,6 +68,14 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
             is_active: user.is_active,
         });
         setOpen(true);
+    };
+
+    const toggleLanguage = (code) => {
+        const current = form.data.languages || [];
+        form.setData(
+            'languages',
+            current.includes(code) ? current.filter((x) => x !== code) : [...current, code],
+        );
     };
 
     const submit = (e) => {
@@ -136,7 +154,16 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
                                         <div>{user.email}</div>
                                         <div className="text-xs text-on-surface-variant">{user.phone}</div>
                                     </td>
-                                    <td className="px-4 py-3 capitalize">{String(user.role).replaceAll('_', ' ')}</td>
+                                    <td className="px-4 py-3">
+                                        <div className="capitalize">{String(user.role).replaceAll('_', ' ')}</div>
+                                        {(user.languages || []).length > 0 && (
+                                            <div className="mt-1 text-xs text-on-surface-variant">
+                                                {(user.languages || [])
+                                                    .map((code) => languages.find((l) => l.value === code)?.label || code)
+                                                    .join(', ')}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-wrap gap-1">
                                             {(user.organizations || []).map((org) => (
@@ -224,6 +251,29 @@ export default function UsersIndex({ users, filters, roles, allOrganizations, ca
                                 value={form.data.password_confirmation}
                                 onChange={(e) => form.setData('password_confirmation', e.target.value)}
                             />
+                            {(form.data.role === 'volunteer' || editing?.role === 'volunteer') && (
+                                <div>
+                                    <p className="mb-2 text-xs font-semibold text-on-surface-variant">
+                                        Comfortable languages
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {languages.map((lang) => (
+                                            <button
+                                                key={lang.value}
+                                                type="button"
+                                                onClick={() => toggleLanguage(lang.value)}
+                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                                    (form.data.languages || []).includes(lang.value)
+                                                        ? 'bg-secondary text-white'
+                                                        : 'bg-surface-container'
+                                                }`}
+                                            >
+                                                {lang.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <p className="mb-2 text-xs font-semibold text-on-surface-variant">
                                     {isSuperAdmin ? 'Organizations' : 'Organization access'}

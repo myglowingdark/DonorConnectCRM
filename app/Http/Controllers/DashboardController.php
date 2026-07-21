@@ -69,14 +69,24 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        $weeklyCalls = DonorInteraction::query()
+        $weeklyCalls = $this->dailyCallSeries(
+            DonorInteraction::query()
+                ->forOrganization($orgId)
+                ->where('volunteer_id', $user->id)
+        );
+
+        $outcomeSeries = DonorInteraction::query()
             ->forOrganization($orgId)
             ->where('volunteer_id', $user->id)
-            ->where('contacted_at', '>=', now()->subDays(6)->startOfDay())
-            ->selectRaw('DATE(contacted_at) as day, COUNT(*) as total')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->pluck('total', 'day');
+            ->where('contacted_at', '>=', now()->subDays(14))
+            ->select('outcome', DB::raw('COUNT(*) as total'))
+            ->groupBy('outcome')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => str_replace('_', ' ', $row->outcome instanceof \BackedEnum ? $row->outcome->value : (string) $row->outcome),
+                'value' => (int) $row->total,
+            ])
+            ->values();
 
         return Inertia::render('Volunteer/Dashboard', [
             'stats' => [
@@ -91,6 +101,7 @@ class DashboardController extends Controller
             'followUps' => $followUps,
             'recentActivity' => $recent,
             'weeklyCalls' => $weeklyCalls,
+            'outcomeSeries' => $outcomeSeries,
             'phase2Notice' => 'Commission tracking arrives in Phase 2.',
         ]);
     }
@@ -137,6 +148,20 @@ class DashboardController extends Controller
             ->groupBy('outcome')
             ->pluck('total', 'outcome');
 
+        $weeklyCalls = $this->dailyCallSeries(
+            DonorInteraction::query()->forOrganization($orgId)
+        );
+
+        $teamCallSeries = $team->map(fn (User $v) => [
+            'label' => $v->name,
+            'value' => (int) $v->calls_count,
+        ])->values();
+
+        $pendingTransfers = \App\Models\DonorTransferRequest::query()
+            ->forOrganization($orgId)
+            ->where('status', 'pending')
+            ->count();
+
         return Inertia::render('Admin/Dashboard', [
             'organization' => $org,
             'stats' => [
@@ -149,9 +174,12 @@ class DashboardController extends Controller
             ],
             'team' => $team,
             'outcomes' => $outcomes,
+            'weeklyCalls' => $weeklyCalls,
+            'teamCallSeries' => $teamCallSeries,
             'pendingActions' => [
                 'overdue_follow_ups' => $followUpsDue,
                 'sync_errors' => $org->apiConnection?->last_error ? 1 : 0,
+                'pending_transfers' => $pendingTransfers,
             ],
             'phase2Notice' => 'Commission and attribution approvals arrive in Phase 2.',
         ]);
@@ -172,6 +200,7 @@ class DashboardController extends Controller
                     'initials' => $org->initials(),
                     'is_active' => $org->is_active,
                     'donors_count' => $org->donors_count,
+                    'donors_limit' => $org->donors_limit,
                     'users_count' => $org->users_count,
                     'sync_status' => $org->apiConnection?->sync_status?->value ?? 'idle',
                     'monthly_collection' => Donation::query()
@@ -189,6 +218,33 @@ class DashboardController extends Controller
                 'donors' => Donor::count(),
                 'donations_month' => Donation::query()->where('donated_at', '>=', now()->startOfMonth())->sum('amount'),
             ],
-        ]);
+            ]);
+    }
+
+    /**
+     * Fill a 7-day call series (oldest → newest) for charts.
+     *
+     * @return list<array{label: string, value: int}>
+     */
+    protected function dailyCallSeries($query): array
+    {
+        $counts = (clone $query)
+            ->where('contacted_at', '>=', now()->subDays(6)->startOfDay())
+            ->selectRaw('DATE(contacted_at) as day, COUNT(*) as total')
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $series = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $day = now()->subDays($i);
+            $key = $day->toDateString();
+            $series[] = [
+                'label' => $day->format('D'),
+                'value' => (int) ($counts[$key] ?? 0),
+            ];
+        }
+
+        return $series;
     }
 }

@@ -12,6 +12,13 @@ class StoreOrganizationRequest extends FormRequest
         return $this->user()?->isSuperAdmin() ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('donors_limit') && $this->input('donors_limit') === '') {
+            $this->merge(['donors_limit' => null]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -21,6 +28,7 @@ class StoreOrganizationRequest extends FormRequest
             'timezone' => ['nullable', 'string', 'max:64'],
             'currency' => ['nullable', 'string', 'size:3'],
             'is_active' => ['sometimes', 'boolean'],
+            'donors_limit' => ['nullable', 'integer', 'min:1'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ];
     }

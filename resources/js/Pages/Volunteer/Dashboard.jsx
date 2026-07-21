@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import KpiCard from '@/Components/KpiCard';
 import EmptyState from '@/Components/EmptyState';
+import PerformanceChart from '@/Components/PerformanceChart';
 import { formatDate, formatINR } from '@/lib/format';
 import { Head, Link } from '@inertiajs/react';
 
@@ -10,6 +11,7 @@ export default function VolunteerDashboard({
     followUps,
     recentActivity,
     weeklyCalls,
+    outcomeSeries,
     phase2Notice,
 }) {
     return (
@@ -82,20 +84,16 @@ export default function VolunteerDashboard({
                     )}
                 </div>
 
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-                    <h3 className="mb-4 font-semibold">Weekly calls</h3>
-                    <div className="space-y-2">
-                        {Object.keys(weeklyCalls || {}).length === 0 && (
-                            <p className="text-sm text-on-surface-variant">No calls logged this week yet.</p>
-                        )}
-                        {Object.entries(weeklyCalls || {}).map(([day, total]) => (
-                            <div key={day} className="flex items-center justify-between text-sm">
-                                <span className="text-on-surface-variant">{day}</span>
-                                <span className="font-semibold">{total}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <PerformanceChart title="Calls (7 days)" data={weeklyCalls} accent="bg-secondary" />
+            </div>
+
+            <div className="mb-6">
+                <PerformanceChart
+                    title="Outcomes (14 days)"
+                    data={outcomeSeries}
+                    emptyLabel="Log a few calls to see outcome trends."
+                    accent="bg-primary"
+                />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">

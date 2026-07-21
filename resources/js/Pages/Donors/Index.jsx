@@ -230,7 +230,21 @@ export default function DonorsIndex({
                                                     {meta.label}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 font-medium">{donor.full_name}</td>
+                                            <td className="px-4 py-3 font-medium">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span>{donor.full_name}</span>
+                                                    {donor.was_transferred && (
+                                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                                                            Transferred
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {donor.preferred_language && (
+                                                    <div className="mt-0.5 text-xs text-on-surface-variant">
+                                                        Lang: {donor.preferred_language}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 {donor.phone ? (
                                                     <a href={`tel:${donor.phone}`} className="font-medium text-secondary hover:underline">

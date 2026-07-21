@@ -8,6 +8,7 @@ use App\Http\Requests\Users\UpdateUserRequest;
 use App\Models\Organization;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\Languages;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,6 +95,7 @@ class UserController extends Controller
                 ]),
             'allOrganizations' => $manageableOrganizations,
             'canManageAllOrganizations' => $actor->isSuperAdmin(),
+            'languages' => Languages::forSelect(),
         ]);
     }
 
@@ -108,6 +110,7 @@ class UserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'languages' => $data['languages'] ?? [],
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
             'is_active' => $data['is_active'] ?? true,
@@ -140,6 +143,7 @@ class UserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'languages' => $data['languages'] ?? [],
             'role' => $data['role'],
             'is_active' => $data['is_active'] ?? $user->is_active,
         ]);

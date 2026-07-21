@@ -1,7 +1,31 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import EmptyState from '@/Components/EmptyState';
 import { formatDateTime } from '@/lib/format';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+
+function openNotification(notification) {
+    const url = notification.data?.url;
+
+    const go = () => {
+        if (url) {
+            window.location.assign(url);
+        }
+    };
+
+    if (!notification.read_at) {
+        router.post(
+            route('notifications.read', notification.id),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: go,
+            },
+        );
+        return;
+    }
+
+    go();
+}
 
 export default function NotificationsIndex({ notifications }) {
     return (
@@ -19,32 +43,40 @@ export default function NotificationsIndex({ notifications }) {
             </div>
 
             {!notifications.data.length ? (
-                <EmptyState icon="notifications" title="You're all caught up" description="Sync failures and follow-up alerts will appear here." />
+                <EmptyState
+                    icon="notifications"
+                    title="You're all caught up"
+                    description="Sync failures, transfers, and follow-up alerts will appear here."
+                />
             ) : (
                 <div className="space-y-3">
                     {notifications.data.map((n) => (
-                        <div
+                        <button
                             key={n.id}
-                            className={`rounded-2xl border border-slate-100 bg-white p-4 shadow-card ${!n.read_at ? 'ring-1 ring-primary/20' : ''}`}
+                            type="button"
+                            onClick={() => openNotification(n)}
+                            className={`w-full rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-card transition hover:bg-surface-container-low ${
+                                !n.read_at ? 'ring-1 ring-primary/20' : ''
+                            }`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <p className="font-semibold">{n.data?.title || 'Notification'}</p>
-                                    <p className="mt-1 text-sm text-on-surface-variant">{n.data?.body || n.data?.message}</p>
+                                    <p className="mt-1 text-sm text-on-surface-variant">
+                                        {n.data?.body || n.data?.message}
+                                    </p>
+                                    {n.data?.url && (
+                                        <p className="mt-2 text-xs font-semibold text-secondary">Open related action →</p>
+                                    )}
                                     <p className="mt-2 text-xs text-on-surface-variant">{formatDateTime(n.created_at)}</p>
                                 </div>
                                 {!n.read_at && (
-                                    <Link
-                                        href={route('notifications.read', n.id)}
-                                        method="post"
-                                        as="button"
-                                        className="text-xs font-semibold text-primary"
-                                    >
-                                        Mark read
-                                    </Link>
+                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                                        New
+                                    </span>
                                 )}
                             </div>
-                        </div>
+                        </button>
                     ))}
                 </div>
             )}

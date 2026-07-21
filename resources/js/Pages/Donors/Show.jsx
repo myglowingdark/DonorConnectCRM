@@ -2,18 +2,63 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import StatusBadge from '@/Components/StatusBadge';
 import { formatDate, formatDateTime, formatINR } from '@/lib/format';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
-export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
+export default function DonorShow({
+    donor,
+    timeline = [],
+    campaigns,
+    outcomes,
+    nextDonorId,
+    languages = [],
+    transferVolunteers = [],
+    canTransfer = false,
+    messagingChannels = [],
+    messageTemplates = [],
+}) {
     const { auth } = usePage().props;
+    const [showTransfer, setShowTransfer] = useState(false);
     const { data, setData, post, processing, errors, reset, transform } = useForm({
         outcome: 'interested',
         notes: '',
         follow_up_at: '',
         pledged_amount: '',
         campaign_id: '',
+        preferred_language: donor.preferred_language || '',
         attribute_donation: false,
         go_next: false,
     });
+
+    const transferForm = useForm({
+        to_volunteer_id: '',
+        reason: '',
+    });
+
+    const messageForm = useForm({
+        channel: messagingChannels[0]?.value || 'email',
+        message_template_id: '',
+        subject: '',
+        body: '',
+    });
+
+    const applyTemplate = (templateId) => {
+        const template = messageTemplates.find((t) => String(t.id) === String(templateId));
+        messageForm.setData((current) => ({
+            ...current,
+            message_template_id: templateId,
+            channel: template?.channel || current.channel,
+            subject: template?.subject || '',
+            body: template?.body || '',
+        }));
+    };
+
+    const submitMessage = (e) => {
+        e.preventDefault();
+        messageForm.post(route('donors.messages.send', donor.id), {
+            preserveScroll: true,
+            onSuccess: () => messageForm.setData('body', ''),
+        });
+    };
 
     const submit = (goNext = false) => {
         transform((formData) => ({
@@ -27,6 +72,20 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
             },
         });
     };
+
+    const submitTransfer = (e) => {
+        e.preventDefault();
+        transferForm.post(route('transfers.store', donor.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowTransfer(false);
+                transferForm.reset();
+            },
+        });
+    };
+
+    const languageLabel =
+        languages.find((l) => l.value === donor.preferred_language)?.label || donor.preferred_language;
 
     return (
         <AuthenticatedLayout header="Donor Profile">
@@ -57,6 +116,16 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                             <h2 className="text-headline-md">{donor.full_name}</h2>
                             <StatusBadge status={donor.donor_status} label={String(donor.donor_status).replaceAll('_', ' ')} />
+                            {donor.was_transferred && (
+                                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                    Transferred
+                                </span>
+                            )}
+                            {donor.pending_transfer && (
+                                <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
+                                    Transfer pending → {donor.pending_transfer.to_volunteer?.name}
+                                </span>
+                            )}
                             <span
                                 className="rounded-full px-2.5 py-1 text-xs font-semibold text-white"
                                 style={{ backgroundColor: donor.organization?.brand_color || '#1e3a8a' }}
@@ -69,6 +138,7 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                         </p>
                         <p className="mt-1 text-sm text-on-surface-variant">
                             {[donor.city, donor.state, donor.country].filter(Boolean).join(', ') || 'Address not set'}
+                            {languageLabel ? ` · Prefers ${languageLabel}` : ''}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -80,6 +150,15 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                                 <span className="material-symbols-outlined text-[18px]">call</span>
                                 Call
                             </a>
+                        )}
+                        {canTransfer && !donor.pending_transfer && (
+                            <button
+                                type="button"
+                                onClick={() => setShowTransfer(true)}
+                                className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold"
+                            >
+                                Transfer
+                            </button>
                         )}
                         <Link
                             href={route('donors.index')}
@@ -109,6 +188,79 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
 
             <div className="grid gap-6 xl:grid-cols-3">
                 <div className="space-y-6 xl:col-span-2">
+                    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+                        <h3 className="mb-1 font-semibold">Send message</h3>
+                        <p className="mb-4 text-xs text-on-surface-variant">
+                            Email, WhatsApp, or short SMS from this organization only.
+                        </p>
+                        {!messagingChannels.length ? (
+                            <p className="text-sm text-on-surface-variant">
+                                No messaging channels enabled. Ask an admin to configure Messaging.
+                            </p>
+                        ) : (
+                            <form onSubmit={submitMessage} className="space-y-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {messagingChannels.map((channel) => (
+                                        <button
+                                            key={channel.value}
+                                            type="button"
+                                            onClick={() => messageForm.setData('channel', channel.value)}
+                                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                                messageForm.data.channel === channel.value
+                                                    ? 'bg-secondary text-white'
+                                                    : 'bg-surface-container'
+                                            }`}
+                                        >
+                                            {channel.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <select
+                                    className="w-full rounded-xl border-slate-200"
+                                    value={messageForm.data.message_template_id}
+                                    onChange={(e) => applyTemplate(e.target.value)}
+                                >
+                                    <option value="">Blank / custom message</option>
+                                    {messageTemplates
+                                        .filter((t) => t.channel === messageForm.data.channel)
+                                        .map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name}
+                                            </option>
+                                        ))}
+                                </select>
+                                {messageForm.data.channel === 'email' && (
+                                    <input
+                                        className="w-full rounded-xl border-slate-200"
+                                        placeholder="Subject"
+                                        value={messageForm.data.subject}
+                                        onChange={(e) => messageForm.setData('subject', e.target.value)}
+                                    />
+                                )}
+                                <textarea
+                                    className="w-full rounded-xl border-slate-200"
+                                    rows={4}
+                                    placeholder="Message body"
+                                    value={messageForm.data.body}
+                                    onChange={(e) => messageForm.setData('body', e.target.value)}
+                                    required
+                                />
+                                {Object.values(messageForm.errors).map((err) => (
+                                    <p key={err} className="text-xs text-error">
+                                        {err}
+                                    </p>
+                                ))}
+                                <button
+                                    type="submit"
+                                    disabled={messageForm.processing}
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Send {messagingChannels.find((c) => c.value === messageForm.data.channel)?.label || 'message'}
+                                </button>
+                            </form>
+                        )}
+                    </section>
+
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                         <h3 className="mb-4 font-semibold">Donation history</h3>
                         <div className="overflow-x-auto">
@@ -145,23 +297,64 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                         <h3 className="mb-4 font-semibold">Interaction timeline</h3>
                         <ul className="space-y-4 border-l border-outline-variant pl-4">
-                            {(donor.interactions || []).map((item) => (
+                            {timeline.map((item) => (
                                 <li key={item.id} className="relative">
-                                    <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                                    <p className="text-sm font-semibold">
-                                        {String(item.outcome).replaceAll('_', ' ')} · {item.volunteer?.name}
-                                    </p>
-                                    <p className="text-xs text-on-surface-variant">{formatDateTime(item.contacted_at)}</p>
-                                    {item.notes && <p className="mt-1 text-sm">{item.notes}</p>}
-                                    {item.follow_up_at && (
-                                        <p className="mt-1 text-xs text-amber-700">
-                                            Follow-up: {formatDateTime(item.follow_up_at)}
-                                        </p>
+                                    <span
+                                        className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ${
+                                            item.type === 'transfer' ? 'bg-amber-500' : 'bg-primary'
+                                        }`}
+                                    />
+                                    {item.type === 'transfer' ? (
+                                        <>
+                                            <p className="text-sm font-semibold capitalize">
+                                                {item.title}
+                                                {item.actor ? ` · ${item.actor}` : ''}
+                                            </p>
+                                            <p className="text-xs text-on-surface-variant">
+                                                {formatDateTime(item.at)}
+                                            </p>
+                                            <p className="mt-1 text-sm">
+                                                {item.from} → {item.to}
+                                                {item.status ? (
+                                                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                                                        {String(item.status).replaceAll('_', ' ')}
+                                                    </span>
+                                                ) : null}
+                                            </p>
+                                            {item.reason && (
+                                                <p className="mt-1 text-sm text-on-surface-variant">
+                                                    Reason: {item.reason}
+                                                </p>
+                                            )}
+                                            {item.response_note && (
+                                                <p className="mt-1 text-sm text-on-surface-variant">
+                                                    Note: {item.response_note}
+                                                </p>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-semibold capitalize">
+                                                {item.title}
+                                                {item.actor ? ` · ${item.actor}` : ''}
+                                            </p>
+                                            <p className="text-xs text-on-surface-variant">
+                                                {formatDateTime(item.at)}
+                                            </p>
+                                            {item.notes && <p className="mt-1 text-sm">{item.notes}</p>}
+                                            {item.follow_up_at && (
+                                                <p className="mt-1 text-xs text-amber-700">
+                                                    Follow-up: {formatDateTime(item.follow_up_at)}
+                                                </p>
+                                            )}
+                                        </>
                                     )}
                                 </li>
                             ))}
-                            {!donor.interactions?.length && (
-                                <li className="text-sm text-on-surface-variant">No interactions yet.</li>
+                            {!timeline.length && (
+                                <li className="text-sm text-on-surface-variant">
+                                    No interactions or transfers yet.
+                                </li>
                             )}
                         </ul>
                     </section>
@@ -190,6 +383,22 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                                     {outcome.label}
                                 </button>
                             ))}
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-on-surface-variant">Preferred language</label>
+                            <select
+                                value={data.preferred_language}
+                                onChange={(e) => setData('preferred_language', e.target.value)}
+                                className="mt-1 w-full rounded-xl border-slate-200 focus:border-secondary focus:ring-secondary"
+                            >
+                                <option value="">Unknown / not set</option>
+                                {languages.map((lang) => (
+                                    <option key={lang.value} value={lang.value}>
+                                        {lang.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
@@ -272,6 +481,63 @@ export default function DonorShow({ donor, campaigns, outcomes, nextDonorId }) {
                     </fieldset>
                 </aside>
             </div>
+
+            {showTransfer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-elevated">
+                        <h3 className="text-lg font-semibold">Transfer donor</h3>
+                        <p className="mt-1 text-sm text-on-surface-variant">
+                            The receiving volunteer must accept before this donor leaves your queue.
+                        </p>
+                        <form onSubmit={submitTransfer} className="mt-4 space-y-3">
+                            <select
+                                className="w-full rounded-xl border-slate-200"
+                                value={transferForm.data.to_volunteer_id}
+                                onChange={(e) => transferForm.setData('to_volunteer_id', e.target.value)}
+                                required
+                            >
+                                <option value="">Select volunteer</option>
+                                {transferVolunteers.map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                        {v.name}
+                                        {(v.languages || []).length
+                                            ? ` (${(v.languages || []).join(', ')})`
+                                            : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <textarea
+                                className="w-full rounded-xl border-slate-200"
+                                rows={3}
+                                placeholder="Why transfer? (optional)"
+                                value={transferForm.data.reason}
+                                onChange={(e) => transferForm.setData('reason', e.target.value)}
+                            />
+                            {Object.values(transferForm.errors).map((err) => (
+                                <p key={err} className="text-xs text-error">
+                                    {err}
+                                </p>
+                            ))}
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTransfer(false)}
+                                    className="rounded-xl px-4 py-2 text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={transferForm.processing}
+                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Send request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

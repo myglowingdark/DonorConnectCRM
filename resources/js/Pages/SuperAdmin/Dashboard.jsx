@@ -55,7 +55,12 @@ export default function SuperAdminDashboard({ organizations, stats }) {
                             </div>
                             <div className="rounded-xl bg-surface-container-low p-2">
                                 <p className="text-xs text-on-surface-variant">Donors</p>
-                                <p className="font-bold">{org.donors_count}</p>
+                                <p className="font-bold">
+                                    {org.donors_count}
+                                    {org.donors_limit != null && (
+                                        <span className="text-xs font-normal text-on-surface-variant"> / {org.donors_limit}</span>
+                                    )}
+                                </p>
                             </div>
                             <div className="rounded-xl bg-surface-container-low p-2">
                                 <p className="text-xs text-on-surface-variant">Month</p>

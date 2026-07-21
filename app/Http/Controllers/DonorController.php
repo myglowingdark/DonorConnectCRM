@@ -4,13 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Enums\CallOutcome;
 use App\Enums\DonorStatus;
+use App\Enums\MessageChannel;
+use App\Enums\TransferStatus;
 use App\Http\Requests\Donors\LogCallRequest;
 use App\Models\Campaign;
 use App\Models\Donor;
+use App\Models\DonorInteraction;
+use App\Models\DonorTransferRequest;
+use App\Models\MessageTemplate;
+use App\Models\User;
 use App\Services\Donors\InteractionService;
+use App\Services\Messaging\MessageService;
+use App\Support\Languages;
 use App\Support\OrganizationContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -131,6 +140,11 @@ class DonorController extends Controller
             'donations' => fn ($q) => $q->latest('donated_at'),
             'interactions.volunteer',
             'activeAssignment.volunteer',
+            'pendingTransfer.toVolunteer',
+            'transferRequests.fromVolunteer',
+            'transferRequests.toVolunteer',
+            'transferRequests.requester',
+            'transferRequests.responder',
         ]);
 
         $campaigns = Campaign::query()
@@ -150,8 +164,42 @@ class DonorController extends Controller
                 ->value('id');
         }
 
+        $transferVolunteers = User::query()
+            ->where('role', 'volunteer')
+            ->where('is_active', true)
+            ->whereHas('organizations', fn ($q) => $q->where('organizations.id', $donor->organization_id))
+            ->when(
+                $request->user()->isVolunteer(),
+                fn ($q) => $q->where('id', '!=', $request->user()->id)
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'languages']);
+
+        $canTransfer = $request->user()->isAdmin()
+            || $donor->activeAssignment?->volunteer_id === $request->user()->id;
+
+        $messagingSettings = app(MessageService::class)->settingsFor($donor->organization_id);
+        $enabledChannels = collect(MessageChannel::cases())
+            ->filter(fn (MessageChannel $channel) => match ($channel) {
+                MessageChannel::Email => $messagingSettings->email_enabled,
+                MessageChannel::WhatsApp => $messagingSettings->whatsapp_enabled,
+                MessageChannel::Sms => $messagingSettings->sms_enabled,
+            })
+            ->map(fn (MessageChannel $c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ])
+            ->values();
+
+        $messageTemplates = MessageTemplate::query()
+            ->forOrganization($donor->organization_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'channel', 'subject', 'body']);
+
         return Inertia::render('Donors/Show', [
             'donor' => $donor,
+            'timeline' => $this->buildTimeline($donor),
             'campaigns' => $campaigns,
             'outcomes' => collect(CallOutcome::cases())->map(fn ($o) => [
                 'value' => $o->value,
@@ -159,7 +207,87 @@ class DonorController extends Controller
                 'icon' => $o->icon(),
             ]),
             'nextDonorId' => $nextDonorId,
+            'languages' => Languages::forSelect(),
+            'transferVolunteers' => $transferVolunteers,
+            'canTransfer' => $canTransfer,
+            'messagingChannels' => $enabledChannels,
+            'messageTemplates' => $messageTemplates,
         ]);
+    }
+
+    /**
+     * Merge call interactions and transfer history into one chronological timeline.
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function buildTimeline(Donor $donor): array
+    {
+        $calls = $donor->interactions->map(function (DonorInteraction $item) {
+            return [
+                'id' => 'call-'.$item->id,
+                'type' => 'call',
+                'at' => optional($item->contacted_at)?->toIso8601String(),
+                'title' => str_replace('_', ' ', $item->outcome instanceof \BackedEnum ? $item->outcome->value : (string) $item->outcome),
+                'actor' => $item->volunteer?->name,
+                'notes' => $item->notes,
+                'follow_up_at' => optional($item->follow_up_at)?->toIso8601String(),
+                'status' => null,
+                'from' => null,
+                'to' => null,
+                'reason' => null,
+                'response_note' => null,
+            ];
+        });
+
+        $transfers = $donor->transferRequests->flatMap(function (DonorTransferRequest $transfer) {
+            $from = $transfer->fromVolunteer?->name ?? 'Volunteer';
+            $to = $transfer->toVolunteer?->name ?? 'Volunteer';
+            $status = $transfer->status instanceof TransferStatus
+                ? $transfer->status
+                : TransferStatus::from((string) $transfer->status);
+
+            $entries = Collection::make([
+                [
+                    'id' => 'transfer-request-'.$transfer->id,
+                    'type' => 'transfer',
+                    'at' => optional($transfer->created_at)?->toIso8601String(),
+                    'title' => 'Transfer requested',
+                    'actor' => $transfer->requester?->name ?? $from,
+                    'notes' => null,
+                    'follow_up_at' => null,
+                    'status' => TransferStatus::Pending->value,
+                    'from' => $from,
+                    'to' => $to,
+                    'reason' => $transfer->reason,
+                    'response_note' => null,
+                ],
+            ]);
+
+            if ($status !== TransferStatus::Pending && $transfer->responded_at) {
+                $entries->push([
+                    'id' => 'transfer-response-'.$transfer->id,
+                    'type' => 'transfer',
+                    'at' => optional($transfer->responded_at)?->toIso8601String(),
+                    'title' => 'Transfer '.$status->label(),
+                    'actor' => $transfer->responder?->name ?? $to,
+                    'notes' => null,
+                    'follow_up_at' => null,
+                    'status' => $status->value,
+                    'from' => $from,
+                    'to' => $to,
+                    'reason' => $transfer->reason,
+                    'response_note' => $transfer->response_note,
+                ]);
+            }
+
+            return $entries;
+        });
+
+        return $calls
+            ->concat($transfers)
+            ->sortByDesc(fn (array $item) => $item['at'] ?? '')
+            ->values()
+            ->all();
     }
 
     public function logCall(LogCallRequest $request, Donor $donor, InteractionService $service): RedirectResponse

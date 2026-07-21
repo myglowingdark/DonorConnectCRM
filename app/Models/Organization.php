@@ -20,12 +20,14 @@ class Organization extends Model
         'timezone',
         'currency',
         'is_active',
+        'donors_limit',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'donors_limit' => 'integer',
         ];
     }
 
@@ -69,6 +71,49 @@ class Organization extends Model
     public function interactions(): HasMany
     {
         return $this->hasMany(DonorInteraction::class);
+    }
+
+    public function commissionSetting(): HasOne
+    {
+        return $this->hasOne(CommissionSetting::class);
+    }
+
+    public function messagingSetting(): HasOne
+    {
+        return $this->hasOne(OrganizationMessagingSetting::class);
+    }
+
+    public function remainingDonorSlots(): ?int
+    {
+        if ($this->donors_limit === null) {
+            return null;
+        }
+
+        return max(0, (int) $this->donors_limit - $this->donors()->count());
+    }
+
+    public function canAcceptNewDonors(int $count = 1): bool
+    {
+        if ($this->donors_limit === null) {
+            return true;
+        }
+
+        return ($this->donors()->count() + $count) <= (int) $this->donors_limit;
+    }
+
+    public function assertCanAcceptNewDonors(int $count = 1): void
+    {
+        if ($this->canAcceptNewDonors($count)) {
+            return;
+        }
+
+        $limit = (int) $this->donors_limit;
+        $current = $this->donors()->count();
+        $remaining = max(0, $limit - $current);
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'donors_limit' => "Donor list limit reached for {$this->name}. Limit {$limit}, current {$current}, remaining {$remaining}.",
+        ]);
     }
 
     public function initials(): string

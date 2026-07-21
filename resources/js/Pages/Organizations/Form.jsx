@@ -10,6 +10,7 @@ export default function OrganizationForm({ organization }) {
         timezone: organization?.timezone || 'Asia/Kolkata',
         currency: organization?.currency || 'INR',
         is_active: organization?.is_active ?? true,
+        donors_limit: organization?.donors_limit ?? '',
         logo: null,
     });
 
@@ -48,6 +49,21 @@ export default function OrganizationForm({ organization }) {
                         <label className="text-xs font-semibold">Currency</label>
                         <input className="mt-1 w-full rounded-xl border-slate-200" value={data.currency} onChange={(e) => setData('currency', e.target.value)} />
                     </div>
+                </div>
+                <div>
+                    <label className="text-xs font-semibold">Donors list limit</label>
+                    <input
+                        type="number"
+                        min="1"
+                        className="mt-1 w-full rounded-xl border-slate-200"
+                        placeholder="Unlimited"
+                        value={data.donors_limit}
+                        onChange={(e) => setData('donors_limit', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                        Leave blank for unlimited. Enforced on CSV import and WordPress sync creates.
+                    </p>
+                    {errors.donors_limit && <p className="text-xs text-error">{errors.donors_limit}</p>}
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />

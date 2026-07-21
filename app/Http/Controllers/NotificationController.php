@@ -26,6 +26,13 @@ class NotificationController extends Controller
         $notification = $request->user()->notifications()->where('id', $id)->firstOrFail();
         $notification->markAsRead();
 
+        // Frontend also navigates to data.url; keep a server-side redirect as backup.
+        $url = $notification->data['url'] ?? null;
+
+        if (is_string($url) && $url !== '' && ! $request->header('X-Inertia')) {
+            return redirect()->to($url);
+        }
+
         return back();
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Donors;
 
 use App\Enums\CallOutcome;
+use App\Support\Languages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,7 @@ class LogCallRequest extends FormRequest
             'follow_up_at' => ['nullable', 'date'],
             'pledged_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'campaign_id' => ['nullable', 'integer', 'exists:campaigns,id'],
+            'preferred_language' => ['nullable', 'string', Rule::in(Languages::codes())],
             'attribute_donation' => ['sometimes', 'boolean'],
             'go_next' => ['sometimes', 'boolean'],
         ];

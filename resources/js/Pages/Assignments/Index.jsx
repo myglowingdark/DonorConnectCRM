@@ -13,6 +13,10 @@ export default function AssignmentsIndex({
 }) {
     const [selectedUnassigned, setSelectedUnassigned] = useState([]);
     const [selectedAssigned, setSelectedAssigned] = useState([]);
+    const [selectedDistributeVolunteers, setSelectedDistributeVolunteers] = useState(
+        volunteers.map((v) => Number(v.id)),
+    );
+    const [cap, setCap] = useState('');
     const [busy, setBusy] = useState(false);
 
     const activeVolunteerId = selectedVolunteerId ? Number(selectedVolunteerId) : null;
@@ -68,11 +72,11 @@ export default function AssignmentsIndex({
     };
 
     const distribute = () => {
-        if (!volunteers.length || busy) {
+        if (!selectedDistributeVolunteers.length || busy) {
             return;
         }
 
-        if (!window.confirm('Distribute all unassigned donors equally across active volunteers?')) {
+        if (!window.confirm('Distribute unassigned donors equally across the selected volunteers?')) {
             return;
         }
 
@@ -80,12 +84,20 @@ export default function AssignmentsIndex({
         router.post(
             route('assignments.distribute'),
             {
-                volunteer_ids: volunteers.map((v) => Number(v.id)),
+                volunteer_ids: selectedDistributeVolunteers,
+                cap_per_volunteer: cap || undefined,
             },
             {
                 preserveScroll: true,
                 onFinish: () => setBusy(false),
             },
+        );
+    };
+
+    const toggleDistributeVolunteer = (id) => {
+        const value = Number(id);
+        setSelectedDistributeVolunteers((list) =>
+            list.includes(value) ? list.filter((x) => x !== value) : [...list, value],
         );
     };
 
@@ -98,22 +110,61 @@ export default function AssignmentsIndex({
         <AuthenticatedLayout header="Donor Assignments">
             <Head title="Assignments" />
 
-            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 className="text-headline-md">Assign donors fairly</h2>
                     <p className="text-sm text-on-surface-variant">
-                        Select a volunteer, choose donors on the left, then assign.
+                        Select a volunteer, choose donors on the left, then assign. Or distribute with a cap.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={distribute}
-                    disabled={busy || !volunteers.length}
-                    className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                >
-                    Distribute equally
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div>
+                        <label className="text-[10px] font-semibold uppercase text-on-surface-variant">Cap / volunteer</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={cap}
+                            onChange={(e) => setCap(e.target.value)}
+                            placeholder="Optional"
+                            className="mt-1 w-28 rounded-xl border-slate-200 text-sm"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={distribute}
+                        disabled={busy || !selectedDistributeVolunteers.length}
+                        className="rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                        Distribute equally
+                    </button>
+                </div>
             </div>
+
+            {!!volunteers.length && (
+                <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
+                    <p className="mb-2 text-xs font-semibold text-on-surface-variant">
+                        Distribute to these volunteers
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {volunteers.map((v) => {
+                            const id = Number(v.id);
+                            const active = selectedDistributeVolunteers.includes(id);
+                            return (
+                                <button
+                                    key={`dist-${v.id}`}
+                                    type="button"
+                                    onClick={() => toggleDistributeVolunteer(id)}
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        active ? 'bg-secondary text-white' : 'bg-surface-container'
+                                    }`}
+                                >
+                                    {v.name}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {!volunteers.length ? (
                 <EmptyState

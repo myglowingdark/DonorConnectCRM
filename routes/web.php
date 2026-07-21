@@ -2,14 +2,20 @@
 
 use App\Http\Controllers\ApiConnectionController;
 use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DonorController;
+use App\Http\Controllers\DonorImportController;
+use App\Http\Controllers\HandoverController;
+use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationSwitcherController;
 use App\Http\Controllers\Phase2StubController;
+use App\Http\Controllers\PlatformMessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TransferController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +48,29 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:super_admin,organization_admin')
             ->name('assignments.distribute');
 
+        Route::get('/imports', [DonorImportController::class, 'index'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('imports.index');
+        Route::post('/imports', [DonorImportController::class, 'store'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('imports.store');
+        Route::get('/imports/template', [DonorImportController::class, 'template'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('imports.template');
+
+        Route::get('/handovers', [HandoverController::class, 'index'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('handovers.index');
+        Route::post('/handovers', [HandoverController::class, 'store'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('handovers.store');
+
+        Route::get('/transfers', [TransferController::class, 'index'])->name('transfers.index');
+        Route::post('/donors/{donor}/transfers', [TransferController::class, 'store'])->name('transfers.store');
+        Route::post('/transfers/{transfer}/accept', [TransferController::class, 'accept'])->name('transfers.accept');
+        Route::post('/transfers/{transfer}/reject', [TransferController::class, 'reject'])->name('transfers.reject');
+        Route::post('/transfers/{transfer}/cancel', [TransferController::class, 'cancel'])->name('transfers.cancel');
+
         Route::get('/sync', [ApiConnectionController::class, 'edit'])
             ->middleware('role:super_admin,organization_admin')
             ->name('sync.edit');
@@ -65,9 +94,34 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:super_admin,organization_admin')
             ->name('reports.export');
 
-        Route::get('/commissions', [Phase2StubController::class, 'commissions'])
+        Route::get('/messaging', [MessagingController::class, 'settings'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.settings');
+        Route::put('/messaging', [MessagingController::class, 'updateSettings'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.settings.update');
+        Route::get('/messaging/templates', [MessagingController::class, 'templates'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.templates');
+        Route::post('/messaging/templates', [MessagingController::class, 'storeTemplate'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.templates.store');
+        Route::put('/messaging/templates/{template}', [MessagingController::class, 'updateTemplate'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.templates.update');
+        Route::delete('/messaging/templates/{template}', [MessagingController::class, 'destroyTemplate'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('messaging.templates.destroy');
+
+        Route::post('/donors/{donor}/messages', [MessagingController::class, 'send'])
+            ->name('donors.messages.send');
+
+        Route::get('/commissions', [CommissionController::class, 'settings'])
             ->middleware('role:super_admin,organization_admin')
             ->name('commissions.settings');
+        Route::put('/commissions', [CommissionController::class, 'updateSettings'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('commissions.settings.update');
         Route::get('/commission-cycles', [Phase2StubController::class, 'commissionCycles'])
             ->middleware('role:super_admin,organization_admin')
             ->name('commissions.cycles');
@@ -106,6 +160,13 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/organizations/{organization}', [OrganizationController::class, 'update'])
         ->middleware('role:super_admin')
         ->name('organizations.update');
+
+    Route::get('/platform/messaging', [PlatformMessagingController::class, 'edit'])
+        ->middleware('role:super_admin')
+        ->name('platform.messaging.edit');
+    Route::put('/platform/messaging', [PlatformMessagingController::class, 'update'])
+        ->middleware('role:super_admin')
+        ->name('platform.messaging.update');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

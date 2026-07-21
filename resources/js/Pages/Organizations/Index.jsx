@@ -17,6 +17,7 @@ export default function OrganizationsIndex({ organizations }) {
                         <tr>
                             <th className="px-4 py-3">Organization</th>
                             <th className="px-4 py-3">Donors</th>
+                            <th className="px-4 py-3">Limit</th>
                             <th className="px-4 py-3">Users</th>
                             <th className="px-4 py-3">Sync</th>
                             <th className="px-4 py-3" />
@@ -40,6 +41,7 @@ export default function OrganizationsIndex({ organizations }) {
                                     </div>
                                 </td>
                                 <td className="px-4 py-3">{org.donors_count}</td>
+                                <td className="px-4 py-3">{org.donors_limit ?? '∞'}</td>
                                 <td className="px-4 py-3">{org.users_count}</td>
                                 <td className="px-4 py-3">{org.api_connection?.sync_status || 'idle'}</td>
                                 <td className="px-4 py-3 text-right">

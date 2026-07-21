@@ -26,8 +26,11 @@ class Donor extends Model
         'city',
         'state',
         'country',
+        'preferred_language',
         'donor_status',
         'do_not_call',
+        'was_transferred',
+        'last_transferred_at',
         'last_contacted_at',
         'last_donation_at',
         'last_donation_amount',
@@ -41,6 +44,8 @@ class Donor extends Model
         return [
             'donor_status' => DonorStatus::class,
             'do_not_call' => 'boolean',
+            'was_transferred' => 'boolean',
+            'last_transferred_at' => 'datetime',
             'last_contacted_at' => 'datetime',
             'last_donation_at' => 'datetime',
             'last_donation_amount' => 'decimal:2',
@@ -48,6 +53,18 @@ class Donor extends Model
             'next_follow_up_at' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    public function transferRequests(): HasMany
+    {
+        return $this->hasMany(DonorTransferRequest::class)->latest();
+    }
+
+    public function pendingTransfer(): HasOne
+    {
+        return $this->hasOne(DonorTransferRequest::class)
+            ->where('status', 'pending')
+            ->latestOfMany();
     }
 
     public function organization(): BelongsTo

@@ -6,6 +6,7 @@ use App\Enums\ApiAuthType;
 use App\Enums\SyncStatus;
 use App\Models\Donation;
 use App\Models\Donor;
+use App\Models\Organization;
 use App\Models\OrganizationApiConnection;
 use App\Models\SyncRun;
 use Illuminate\Http\Client\PendingRequest;
@@ -165,6 +166,17 @@ class WordPressDonorSyncService
             $run->increment('donors_updated');
             $donor = $existing;
         } else {
+            $organization = $connection->organization ?? Organization::query()->find($connection->organization_id);
+            if ($organization && ! $organization->canAcceptNewDonors(1)) {
+                Log::warning('WordPress sync skipped new donor — org donor limit reached', [
+                    'organization_id' => $connection->organization_id,
+                    'external_donor_id' => $externalId,
+                    'donors_limit' => $organization->donors_limit,
+                ]);
+
+                return;
+            }
+
             $donor = Donor::create($donorData);
             $run->increment('donors_imported');
         }

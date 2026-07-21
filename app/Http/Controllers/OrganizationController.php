@@ -47,6 +47,10 @@ class OrganizationController extends Controller
         $data['timezone'] = $data['timezone'] ?? 'Asia/Kolkata';
         $data['currency'] = $data['currency'] ?? 'INR';
 
+        if (array_key_exists('donors_limit', $data) && $data['donors_limit'] === '') {
+            $data['donors_limit'] = null;
+        }
+
         if ($request->hasFile('logo')) {
             $data['logo_path'] = $request->file('logo')->store('logos', 'public');
         }
@@ -76,9 +80,13 @@ class OrganizationController extends Controller
         Organization $organization,
         AuditLogger $auditLogger,
     ): RedirectResponse {
-        $old = $organization->only(['name', 'slug', 'brand_color', 'timezone', 'currency', 'is_active', 'logo_path']);
+        $old = $organization->only(['name', 'slug', 'brand_color', 'timezone', 'currency', 'is_active', 'donors_limit', 'logo_path']);
         $data = $request->validated();
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
+
+        if (array_key_exists('donors_limit', $data) && $data['donors_limit'] === '') {
+            $data['donors_limit'] = null;
+        }
 
         if ($request->hasFile('logo')) {
             if ($organization->logo_path) {

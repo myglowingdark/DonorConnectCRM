@@ -126,16 +126,18 @@ class AssignmentController extends Controller
         $validated = $request->validate([
             'volunteer_ids' => ['required', 'array', 'min:1'],
             'volunteer_ids.*' => ['integer', 'exists:users,id'],
+            'cap_per_volunteer' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ]);
 
         $count = $service->distributeEqually(
             $orgId,
             array_map('intval', $validated['volunteer_ids']),
             $request->user(),
+            isset($validated['cap_per_volunteer']) ? (int) $validated['cap_per_volunteer'] : null,
         );
 
         return redirect()
             ->route('assignments.index')
-            ->with('success', "Distributed {$count} unassigned donor(s) equally.");
+            ->with('success', "Distributed {$count} unassigned donor(s) equally".(isset($validated['cap_per_volunteer']) ? " (cap {$validated['cap_per_volunteer']}/volunteer)" : '').'.');
     }
 }

@@ -12,7 +12,7 @@ const mobileNav = [
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, currentOrganization } = usePage().props;
+    const { auth, currentOrganization, unreadNotificationsCount = 0 } = usePage().props;
     const [mobileOpen, setMobileOpen] = useState(false);
 
     return (
@@ -46,9 +46,14 @@ export default function AuthenticatedLayout({ header, children }) {
                     <div className="flex items-center gap-3">
                         <Link
                             href={route('notifications.index')}
-                            className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low"
+                            className="relative rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-low"
                         >
                             <span className="material-symbols-outlined">notifications</span>
+                            {unreadNotificationsCount > 0 && (
+                                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-white">
+                                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                                </span>
+                            )}
                         </Link>
                         <div className="hidden text-right sm:block">
                             <p className="text-sm font-semibold">{auth.user?.name}</p>

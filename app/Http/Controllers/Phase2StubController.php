@@ -7,15 +7,6 @@ use Inertia\Response;
 
 class Phase2StubController extends Controller
 {
-    public function commissions(): Response
-    {
-        return Inertia::render('Phase2/ComingSoon', [
-            'title' => 'Commission Settings',
-            'description' => 'Individual and shared team commission rules, monthly cycles, and approvals will be available in Phase 2.',
-            'designReference' => 'ui_design/commission_settings',
-        ]);
-    }
-
     public function commissionCycles(): Response
     {
         return Inertia::render('Phase2/ComingSoon', [

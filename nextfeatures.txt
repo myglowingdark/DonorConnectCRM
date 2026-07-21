@@ -30,3 +30,5 @@ smtp / org wise smtp /
 
 
 email whatsapp  configuartion and templates set by admin
+
+notification icon should , show count and , the notification should redirect to the relevent actiosn

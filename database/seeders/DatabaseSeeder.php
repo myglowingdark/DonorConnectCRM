@@ -72,6 +72,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => UserRole::Volunteer,
             'phone' => '+91 9876543210',
+            'languages' => ['hi', 'en'],
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
@@ -82,6 +83,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => UserRole::Volunteer,
             'phone' => '+91 9876543211',
+            'languages' => ['en', 'hi', 'mr'],
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
@@ -92,6 +94,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => UserRole::Volunteer,
             'phone' => '+91 9876543212',
+            'languages' => ['en', 'ur', 'hi'],
             'email_verified_at' => now(),
             'is_active' => true,
         ]);

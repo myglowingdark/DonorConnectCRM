@@ -23,6 +23,7 @@ class InteractionService
      *     pledged_amount?: float|null,
      *     campaign_id?: int|null,
      *     attribute_donation?: bool,
+     *     preferred_language?: string|null,
      *     contacted_at?: string|null
      * }  $data
      */
@@ -56,6 +57,10 @@ class InteractionService
                 'donor_status' => DonorStatus::fromOutcome($outcome),
                 'next_follow_up_at' => $interaction->follow_up_at,
             ];
+
+            if (array_key_exists('preferred_language', $data) && filled($data['preferred_language'])) {
+                $updates['preferred_language'] = $data['preferred_language'];
+            }
 
             if ($outcome === CallOutcome::DoNotCall) {
                 $updates['do_not_call'] = true;

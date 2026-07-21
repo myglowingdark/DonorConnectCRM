@@ -101,16 +101,23 @@ class AssignmentService
     }
 
     /**
-     * Fairly distribute unassigned donors across active volunteers.
+     * Fairly distribute donors across volunteers, optionally capped and limited to a donor set.
      *
      * @param  array<int>  $volunteerIds
+     * @param  array<int>|null  $donorIds  When set, only these donors (still unassigned/forced) are distributed.
      */
-    public function distributeEqually(int $organizationId, array $volunteerIds, User $actor): int
-    {
+    public function distributeEquallyWithCap(
+        int $organizationId,
+        array $volunteerIds,
+        User $actor,
+        ?int $capPerVolunteer = null,
+        ?array $donorIds = null,
+    ): int {
         $volunteers = User::query()
             ->whereIn('id', $volunteerIds)
+            ->where('is_active', true)
             ->get()
-            ->filter(fn (User $u) => $u->belongsToOrganization($organizationId))
+            ->filter(fn (User $u) => $u->belongsToOrganization($organizationId) && $u->isVolunteer())
             ->values();
 
         if ($volunteers->isEmpty()) {
@@ -119,29 +126,61 @@ class AssignmentService
             ]);
         }
 
-        $unassigned = Donor::query()
-            ->forOrganization($organizationId)
-            ->whereDoesntHave('assignments', fn ($q) => $q->where('is_active', true))
-            ->orderBy('id')
-            ->get();
+        $query = Donor::query()->forOrganization($organizationId)->orderBy('id');
 
-        if ($unassigned->isEmpty()) {
+        if ($donorIds !== null) {
+            $query->whereIn('id', $donorIds);
+        } else {
+            $query->whereDoesntHave('assignments', fn ($q) => $q->where('is_active', true));
+        }
+
+        $donors = $query->get();
+
+        if ($donors->isEmpty()) {
             return 0;
         }
 
-        return DB::transaction(function () use ($organizationId, $unassigned, $volunteers, $actor) {
-            $count = 0;
-            $volunteerCount = $volunteers->count();
+        $workload = $this->workloadCounts($organizationId);
 
-            foreach ($unassigned->values() as $index => $donor) {
-                /** @var User $volunteer */
-                $volunteer = $volunteers[$index % $volunteerCount];
-                $this->assignDonors($organizationId, $volunteer->id, [$donor->id], $actor);
+        return DB::transaction(function () use ($organizationId, $donors, $volunteers, $actor, $capPerVolunteer, $workload) {
+            $count = 0;
+            $assignedCounts = $volunteers->mapWithKeys(
+                fn (User $v) => [$v->id => (int) ($workload[$v->id] ?? 0)]
+            )->all();
+
+            foreach ($donors as $donor) {
+                $eligible = $volunteers->filter(function (User $volunteer) use ($assignedCounts, $capPerVolunteer) {
+                    if ($capPerVolunteer === null) {
+                        return true;
+                    }
+
+                    return ($assignedCounts[$volunteer->id] ?? 0) < $capPerVolunteer;
+                })->values();
+
+                if ($eligible->isEmpty()) {
+                    break;
+                }
+
+                /** @var User $pick */
+                $pick = $eligible->sortBy(fn (User $v) => $assignedCounts[$v->id] ?? 0)->first();
+
+                $this->assignDonors($organizationId, $pick->id, [$donor->id], $actor);
+                $assignedCounts[$pick->id] = ($assignedCounts[$pick->id] ?? 0) + 1;
                 $count++;
             }
 
             return $count;
         });
+    }
+
+    /**
+     * Fairly distribute unassigned donors across active volunteers.
+     *
+     * @param  array<int>  $volunteerIds
+     */
+    public function distributeEqually(int $organizationId, array $volunteerIds, User $actor, ?int $capPerVolunteer = null): int
+    {
+        return $this->distributeEquallyWithCap($organizationId, $volunteerIds, $actor, $capPerVolunteer);
     }
 
     public function workloadCounts(int $organizationId): Collection
