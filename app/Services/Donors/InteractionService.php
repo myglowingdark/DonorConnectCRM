@@ -8,12 +8,16 @@ use App\Models\Donor;
 use App\Models\DonorInteraction;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Commissions\AttributionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class InteractionService
 {
-    public function __construct(private AuditLogger $auditLogger) {}
+    public function __construct(
+        private AuditLogger $auditLogger,
+        private AttributionService $attributionService,
+    ) {}
 
     /**
      * @param  array{
@@ -38,6 +42,8 @@ class InteractionService
         $outcome = CallOutcome::from($data['outcome']);
 
         return DB::transaction(function () use ($donor, $volunteer, $data, $outcome) {
+            $attribute = (bool) ($data['attribute_donation'] ?? false);
+
             $interaction = DonorInteraction::create([
                 'organization_id' => $donor->organization_id,
                 'donor_id' => $donor->id,
@@ -49,7 +55,7 @@ class InteractionService
                 'follow_up_at' => $data['follow_up_at'] ?? null,
                 'pledged_amount' => $data['pledged_amount'] ?? null,
                 'campaign_id' => $data['campaign_id'] ?? null,
-                'attribute_donation' => (bool) ($data['attribute_donation'] ?? false),
+                'attribute_donation' => $attribute,
             ]);
 
             $updates = [
@@ -70,6 +76,10 @@ class InteractionService
 
             $donor->update($updates);
 
+            if ($attribute) {
+                $this->attributionService->queueFromCall($donor->fresh(), $volunteer);
+            }
+
             $this->auditLogger->log(
                 'donor.call_logged',
                 $donor,
@@ -78,6 +88,7 @@ class InteractionService
                     'outcome' => $outcome->value,
                     'interaction_id' => $interaction->id,
                     'volunteer_id' => $volunteer->id,
+                    'attribute_donation' => $attribute,
                 ],
                 $donor->organization_id,
                 $volunteer,

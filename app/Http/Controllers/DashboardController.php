@@ -102,7 +102,7 @@ class DashboardController extends Controller
             'recentActivity' => $recent,
             'weeklyCalls' => $weeklyCalls,
             'outcomeSeries' => $outcomeSeries,
-            'phase2Notice' => 'Commission tracking arrives in Phase 2.',
+            'phase2Notice' => null,
         ]);
     }
 
@@ -181,7 +181,7 @@ class DashboardController extends Controller
                 'sync_errors' => $org->apiConnection?->last_error ? 1 : 0,
                 'pending_transfers' => $pendingTransfers,
             ],
-            'phase2Notice' => 'Commission and attribution approvals arrive in Phase 2.',
+            'phase2Notice' => null,
         ]);
     }
 

@@ -20,3 +20,5 @@ Schedule::call(function () {
         ->pluck('id')
         ->each(fn ($id) => SyncOrganizationDonorsJob::dispatch($id));
 })->hourly()->name('wordpress-donor-sync-hourly');
+
+Schedule::command('reports:send-due')->hourly()->name('org-report-emails-hourly');

@@ -2,16 +2,18 @@
 
 use App\Http\Controllers\ApiConnectionController;
 use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\AttributionController;
 use App\Http\Controllers\CommissionController;
+use App\Http\Controllers\CommissionCycleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DonorController;
 use App\Http\Controllers\DonorImportController;
+use App\Http\Controllers\EmailReportController;
 use App\Http\Controllers\HandoverController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationSwitcherController;
-use App\Http\Controllers\Phase2StubController;
 use App\Http\Controllers\PlatformMessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -122,16 +124,56 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/commissions', [CommissionController::class, 'updateSettings'])
             ->middleware('role:super_admin,organization_admin')
             ->name('commissions.settings.update');
-        Route::get('/commission-cycles', [Phase2StubController::class, 'commissionCycles'])
+
+        Route::get('/commission-cycles', [CommissionCycleController::class, 'index'])
             ->middleware('role:super_admin,organization_admin')
             ->name('commissions.cycles');
-        Route::get('/attributions', [Phase2StubController::class, 'attributions'])
+        Route::post('/commission-cycles/calculate', [CommissionCycleController::class, 'calculate'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('commissions.cycles.calculate');
+        Route::get('/commission-cycles/{cycle}', [CommissionCycleController::class, 'show'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('commissions.cycles.show');
+        Route::post('/commission-cycles/{cycle}/approve', [CommissionCycleController::class, 'approve'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('commissions.cycles.approve');
+        Route::post('/commission-cycles/{cycle}/pay', [CommissionCycleController::class, 'markPaid'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('commissions.cycles.pay');
+
+        Route::get('/attributions', [AttributionController::class, 'index'])
             ->middleware('role:super_admin,organization_admin')
             ->name('attributions.index');
-        Route::get('/email-reports', [Phase2StubController::class, 'emailReports'])
+        Route::post('/attributions/{attribution}/approve', [AttributionController::class, 'approve'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('attributions.approve');
+        Route::post('/attributions/{attribution}/reject', [AttributionController::class, 'reject'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('attributions.reject');
+
+        Route::get('/email-reports', [EmailReportController::class, 'index'])
             ->middleware('role:super_admin,organization_admin')
             ->name('email-reports.index');
-        Route::get('/my-commission', [Phase2StubController::class, 'myCommission'])
+        Route::post('/email-reports/recipients', [EmailReportController::class, 'storeRecipient'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.recipients.store');
+        Route::put('/email-reports/recipients/{recipient}', [EmailReportController::class, 'updateRecipient'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.recipients.update');
+        Route::delete('/email-reports/recipients/{recipient}', [EmailReportController::class, 'destroyRecipient'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.recipients.destroy');
+        Route::post('/email-reports/schedules', [EmailReportController::class, 'storeSchedule'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.schedules.store');
+        Route::put('/email-reports/schedules/{schedule}', [EmailReportController::class, 'updateSchedule'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.schedules.update');
+        Route::delete('/email-reports/schedules/{schedule}', [EmailReportController::class, 'destroySchedule'])
+            ->middleware('role:super_admin,organization_admin')
+            ->name('email-reports.schedules.destroy');
+
+        Route::get('/my-commission', [CommissionCycleController::class, 'mine'])
             ->name('commissions.mine');
     });
 

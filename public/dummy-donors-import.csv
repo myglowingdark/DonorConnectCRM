@@ -1,0 +1,11 @@
+full_name,phone,email,city,state,preferred_language
+"Anita Mehta",+919811111111,anita.mehta@example.com,Mumbai,Maharashtra,hi
+"Ravi Sharma",+919822222222,ravi.sharma@example.com,Delhi,Delhi,en
+"Fatima Khan",+919833333333,fatima.khan@example.com,Hyderabad,Telangana,ur
+"Joseph DSouza",+919844444444,joseph.dsouza@example.com,Goa,Goa,en
+"Lakshmi Iyer",+919855555555,lakshmi.iyer@example.com,Chennai,"Tamil Nadu",ta
+"Gurpreet Singh",+919866666666,gurpreet.singh@example.com,Amritsar,Punjab,pa
+"Sneha Patil",+919877777777,sneha.patil@example.com,Pune,Maharashtra,mr
+"Arjun Reddy",+919888888888,arjun.reddy@example.com,Bengaluru,Karnataka,kn
+"Meera Nair",+919899999999,meera.nair@example.com,Kochi,Kerala,ml
+"Invalid Missing Contact",,,,,

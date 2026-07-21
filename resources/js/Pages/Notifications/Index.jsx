@@ -3,13 +3,31 @@ import EmptyState from '@/Components/EmptyState';
 import { formatDateTime } from '@/lib/format';
 import { Head, router } from '@inertiajs/react';
 
+function resolveVisitUrl(url) {
+    if (!url) return null;
+
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+            return parsed.pathname + parsed.search + parsed.hash;
+        }
+        return url;
+    } catch {
+        return url;
+    }
+}
+
 function openNotification(notification) {
-    const url = notification.data?.url;
+    const rawUrl = notification.data?.url;
+    const url = resolveVisitUrl(rawUrl);
 
     const go = () => {
-        if (url) {
+        if (!url) return;
+        if (url.startsWith('http://') || url.startsWith('https://')) {
             window.location.assign(url);
+            return;
         }
+        router.visit(url);
     };
 
     if (!notification.read_at) {
@@ -62,20 +80,11 @@ export default function NotificationsIndex({ notifications }) {
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <p className="font-semibold">{n.data?.title || 'Notification'}</p>
-                                    <p className="mt-1 text-sm text-on-surface-variant">
-                                        {n.data?.body || n.data?.message}
-                                    </p>
-                                    {n.data?.url && (
-                                        <p className="mt-2 text-xs font-semibold text-secondary">Open related action →</p>
-                                    )}
-                                    <p className="mt-2 text-xs text-on-surface-variant">{formatDateTime(n.created_at)}</p>
+                                    <p className="mt-1 text-sm text-on-surface-variant">{n.data?.body}</p>
                                 </div>
-                                {!n.read_at && (
-                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
-                                        New
-                                    </span>
-                                )}
+                                {!n.read_at && <span className="mt-1 h-2 w-2 rounded-full bg-primary" />}
                             </div>
+                            <p className="mt-2 text-xs text-on-surface-variant">{formatDateTime(n.created_at)}</p>
                         </button>
                     ))}
                 </div>
