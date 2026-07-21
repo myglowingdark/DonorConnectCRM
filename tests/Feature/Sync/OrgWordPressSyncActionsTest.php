@@ -36,6 +36,23 @@ class OrgWordPressSyncActionsTest extends TestCase
             );
     }
 
+    public function test_org_scoped_test_action_does_not_five_hundred(): void
+    {
+        Http::fake([
+            '*/health' => Http::response(['ok' => true], 200),
+        ]);
+
+        [$org, $admin, $connection] = $this->seedConnection();
+
+        // Regression: injecting WordPressDonorSyncService after route models caused
+        // Laravel to pass organization id into $connection (TypeError 500).
+        $this->actingAs($admin)
+            ->from(route('organizations.sync.edit', $org))
+            ->post(route('organizations.sync.test', [$org, $connection]))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+    }
+
     public function test_org_admin_can_run_live_bridge_actions(): void
     {
         Http::fake([

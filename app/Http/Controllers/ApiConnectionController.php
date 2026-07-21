@@ -82,21 +82,18 @@ class ApiConnectionController extends Controller
         return $this->persistUpdate($request, $connection, $auditLogger);
     }
 
-    public function test(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-    ): RedirectResponse {
-        return $this->runTest($connection, $service);
+    public function test(OrganizationApiConnection $connection): RedirectResponse
+    {
+        return $this->runTest($connection);
     }
 
     public function testForOrganization(
         Organization $organization,
         OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
     ): RedirectResponse {
         abort_unless($connection->organization_id === $organization->id, 404);
 
-        return $this->runTest($connection, $service);
+        return $this->runTest($connection);
     }
 
     public function sync(OrganizationApiConnection $connection): RedirectResponse
@@ -113,101 +110,117 @@ class ApiConnectionController extends Controller
         return $this->runSync($connection);
     }
 
-    public function syncRazorpay(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-        AuditLogger $auditLogger,
-    ): RedirectResponse {
-        return $this->runSyncRazorpay($connection, $service, $auditLogger);
+    public function syncRazorpay(OrganizationApiConnection $connection): RedirectResponse
+    {
+        return $this->runSyncRazorpay($connection);
     }
 
     public function syncRazorpayForOrganization(
         Organization $organization,
         OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-        AuditLogger $auditLogger,
     ): RedirectResponse {
         abort_unless($connection->organization_id === $organization->id, 404);
 
-        return $this->runSyncRazorpay($connection, $service, $auditLogger);
+        return $this->runSyncRazorpay($connection);
     }
 
-    public function razorpayStatus(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-    ): RedirectResponse {
-        return $this->runRazorpayStatus($connection, $service);
+    public function razorpayStatus(OrganizationApiConnection $connection): RedirectResponse
+    {
+        return $this->runRazorpayStatus($connection);
     }
 
     public function razorpayStatusForOrganization(
         Organization $organization,
         OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
     ): RedirectResponse {
         abort_unless($connection->organization_id === $organization->id, 404);
 
-        return $this->runRazorpayStatus($connection, $service);
+        return $this->runRazorpayStatus($connection);
     }
 
-    protected function runTest(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-    ): RedirectResponse {
-        $this->authorize('sync', $connection);
+    protected function runTest(OrganizationApiConnection $connection): RedirectResponse
+    {
+        try {
+            $this->authorize('sync', $connection);
 
-        $result = $service->testConnection($connection);
+            $result = app(WordPressDonorSyncService::class)->testConnection($connection);
 
-        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+            return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Test connection failed: '.$e->getMessage());
+        }
     }
 
     protected function runSync(OrganizationApiConnection $connection): RedirectResponse
     {
-        $this->authorize('sync', $connection);
+        try {
+            $this->authorize('sync', $connection);
 
-        // Run immediately so "Sync donors now" works on shared hosting without a queue worker.
-        SyncOrganizationDonorsJob::dispatchSync($connection->id);
+            // Run immediately so "Sync donors now" works on shared hosting without a queue worker.
+            SyncOrganizationDonorsJob::dispatchSync($connection->id);
 
-        $connection->refresh();
+            $connection->refresh();
 
-        if ($connection->sync_status === SyncStatus::Failed) {
-            return back()->with('error', $connection->last_error ?: 'Donor sync failed.');
+            if ($connection->sync_status === SyncStatus::Failed) {
+                return back()->with('error', $connection->last_error ?: 'Donor sync failed.');
+            }
+
+            return back()->with('success', 'Donor sync completed.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Donor sync failed: '.$e->getMessage());
         }
-
-        return back()->with('success', 'Donor sync completed.');
     }
 
-    protected function runSyncRazorpay(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-        AuditLogger $auditLogger,
-    ): RedirectResponse {
-        $this->authorize('sync', $connection);
+    protected function runSyncRazorpay(OrganizationApiConnection $connection): RedirectResponse
+    {
+        try {
+            $this->authorize('sync', $connection);
 
-        $result = $service->syncRazorpayCredentials($connection);
+            $service = app(WordPressDonorSyncService::class);
+            $result = $service->syncRazorpayCredentials($connection);
 
-        if ($result['ok']) {
-            $auditLogger->log('organization.razorpay_synced_from_wordpress', $connection->organization, null, [
-                'key_id' => $result['key_id'] ?? null,
-                'connection_id' => $connection->id,
-            ], $connection->organization_id);
+            if ($result['ok']) {
+                app(AuditLogger::class)->log(
+                    'organization.razorpay_synced_from_wordpress',
+                    $connection->organization,
+                    null,
+                    [
+                        'key_id' => $result['key_id'] ?? null,
+                        'connection_id' => $connection->id,
+                    ],
+                    $connection->organization_id,
+                );
+            }
+
+            return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Razorpay sync failed: '.$e->getMessage());
         }
-
-        return back()->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    protected function runRazorpayStatus(
-        OrganizationApiConnection $connection,
-        WordPressDonorSyncService $service,
-    ): RedirectResponse {
-        $this->authorize('sync', $connection);
+    protected function runRazorpayStatus(OrganizationApiConnection $connection): RedirectResponse
+    {
+        try {
+            $this->authorize('sync', $connection);
 
-        $result = $service->razorpayStatus($connection);
-        $message = $result['ok']
-            ? ('WordPress Razorpay '.(($result['configured'] ?? false) ? 'configured' : 'not configured')
-                .(! empty($result['key_id_masked']) ? ' ('.$result['key_id_masked'].')' : ''))
-            : ('Could not read Razorpay status: '.($result['message'] ?? 'unknown'));
+            $result = app(WordPressDonorSyncService::class)->razorpayStatus($connection);
+            $message = $result['ok']
+                ? ('WordPress Razorpay '.(($result['configured'] ?? false) ? 'configured' : 'not configured')
+                    .(! empty($result['key_id_masked']) ? ' ('.$result['key_id_masked'].')' : ''))
+                : ('Could not read Razorpay status: '.($result['message'] ?? 'unknown'));
 
-        return back()->with($result['ok'] ? 'success' : 'error', $message);
+            return back()->with($result['ok'] ? 'success' : 'error', $message);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Razorpay status check failed: '.$e->getMessage());
+        }
     }
 
     protected function renderEdit(Organization $organization, WordPressDonorSyncService $syncService): Response

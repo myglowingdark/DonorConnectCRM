@@ -47,11 +47,18 @@ class WordPressDonorSyncService
                     'message' => 'Saved credentials cannot be decrypted. Re-enter Site ID, API key, and HMAC secret, then Save.',
                 ];
             }
-            if ($connection->auth_type === ApiAuthType::Hmac && blank($credentials['api_key'] ?? $credentials['key'] ?? null)) {
-                return [
-                    'ok' => false,
-                    'message' => 'API key is missing. Paste the key from WP Admin → DonorConnect → Reveal secrets, then Save.',
-                ];
+            if ($connection->auth_type === ApiAuthType::Hmac) {
+                $apiKey = (string) (filled($credentials['api_key'] ?? null)
+                    ? $credentials['api_key']
+                    : ($credentials['key'] ?? ''));
+                $hmacSecret = (string) ($credentials['hmac_secret'] ?? '');
+
+                if ($apiKey === '' || $hmacSecret === '') {
+                    return [
+                        'ok' => false,
+                        'message' => 'API key or HMAC secret is missing in CRM. Open WP Admin → DonorConnect → Reveal secrets, paste all three values, then Save connection.',
+                    ];
+                }
             }
 
             $healthUrl = rtrim($connection->base_url, '/').'/health';
@@ -352,11 +359,20 @@ class WordPressDonorSyncService
         array $query = [],
         ?string $body = null,
     ): \Illuminate\Http\Client\Response {
-        $request = $this->client($connection);
+        $credentials = $connection->safeCredentials() ?? [];
+        $apiKey = (string) (filled($credentials['api_key'] ?? null)
+            ? $credentials['api_key']
+            : ($credentials['key'] ?? ''));
+        $hmacSecret = (string) ($credentials['hmac_secret'] ?? '');
+        $siteId = (string) ($credentials['site_id'] ?? '');
+
+        $request = Http::timeout(60)->acceptJson()->withOptions([
+            'verify' => true,
+        ]);
+
         $method = strtoupper($method);
 
         if ($connection->auth_type === ApiAuthType::Hmac) {
-            $credentials = $connection->credentials ?? [];
             ksort($query);
             $queryString = http_build_query($query);
             $path = (string) (parse_url($url, PHP_URL_PATH) ?: '');
@@ -367,15 +383,21 @@ class WordPressDonorSyncService
             $timestamp = (string) time();
             $nonce = bin2hex(random_bytes(16));
             $payload = $timestamp.'.'.$nonce.'.'.$method.'.'.$pathWithQuery.'.'.hash('sha256', $bodyString);
-            $signature = hash_hmac('sha256', $payload, (string) ($credentials['hmac_secret'] ?? ''));
+            $signature = hash_hmac('sha256', $payload, $hmacSecret);
 
-            $request = $request->withHeaders([
-                'X-DC-API-Key' => (string) ($credentials['api_key'] ?? $credentials['key'] ?? ''),
-                'X-DC-Timestamp' => $timestamp,
-                'X-DC-Nonce' => $nonce,
-                'X-DC-Signature' => $signature,
-                'X-DC-Site-Id' => (string) ($credentials['site_id'] ?? ''),
-            ]);
+            // Send API key both as custom header and Bearer — WP accepts either;
+            // some hosts strip uncommon X-* headers.
+            $request = $request
+                ->withToken($apiKey)
+                ->withHeaders([
+                    'X-DC-API-Key' => $apiKey,
+                    'X-DC-Timestamp' => $timestamp,
+                    'X-DC-Nonce' => $nonce,
+                    'X-DC-Signature' => $signature,
+                    'X-DC-Site-Id' => $siteId,
+                ]);
+        } else {
+            $request = $this->applyNonHmacAuth($request, $connection, $credentials);
         }
 
         return match ($method) {
@@ -385,22 +407,34 @@ class WordPressDonorSyncService
         };
     }
 
-    protected function client(OrganizationApiConnection $connection): PendingRequest
-    {
-        $request = Http::timeout(60)->acceptJson();
-        $credentials = $connection->credentials ?? [];
-
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    protected function applyNonHmacAuth(
+        PendingRequest $request,
+        OrganizationApiConnection $connection,
+        array $credentials,
+    ): PendingRequest {
         return match ($connection->auth_type) {
             ApiAuthType::Bearer => $request->withToken((string) ($credentials['token'] ?? '')),
             ApiAuthType::Basic => $request->withBasicAuth(
                 (string) ($credentials['username'] ?? ''),
                 (string) ($credentials['password'] ?? ''),
             ),
-            ApiAuthType::ApiKey, ApiAuthType::Hmac => $request->withHeaders([
-                (string) ($credentials['header'] ?? 'X-DC-API-Key') => (string) ($credentials['key'] ?? $credentials['api_key'] ?? ''),
+            ApiAuthType::ApiKey => $request->withHeaders([
+                (string) ($credentials['header'] ?? 'X-API-Key') => (string) (
+                    filled($credentials['key'] ?? null) ? $credentials['key'] : ($credentials['api_key'] ?? '')
+                ),
             ]),
             default => $request,
         };
+    }
+
+    protected function client(OrganizationApiConnection $connection): PendingRequest
+    {
+        $credentials = $connection->safeCredentials() ?? [];
+
+        return $this->applyNonHmacAuth(Http::timeout(60)->acceptJson(), $connection, $credentials);
     }
 
     /**

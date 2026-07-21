@@ -48,4 +48,29 @@ class StoreApiConnectionRequest extends FormRequest
             'is_active' => ['sometimes', 'boolean'],
         ];
     }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            if ($this->input('auth_type') !== ApiAuthType::Hmac->value) {
+                return;
+            }
+
+            $connection = $this->route('connection');
+            $existing = $connection instanceof OrganizationApiConnection
+                ? ($connection->safeCredentials() ?? [])
+                : [];
+            $hasExisting = filled($existing['api_key'] ?? null) && filled($existing['hmac_secret'] ?? null);
+
+            if (! $hasExisting && blank($this->input('api_key'))) {
+                $validator->errors()->add('api_key', 'API key is required for HMAC (DonorConnect Bridge).');
+            }
+            if (! $hasExisting && blank($this->input('hmac_secret'))) {
+                $validator->errors()->add('hmac_secret', 'HMAC secret is required for HMAC (DonorConnect Bridge).');
+            }
+            if (! $hasExisting && blank($this->input('site_id'))) {
+                $validator->errors()->add('site_id', 'Site ID is required for HMAC (DonorConnect Bridge).');
+            }
+        });
+    }
 }
