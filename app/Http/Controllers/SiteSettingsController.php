@@ -19,6 +19,7 @@ use App\Services\Messaging\MetaWhatsAppClient;
 use App\Services\Messaging\MetaWhatsAppCredentials;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -197,7 +198,17 @@ class SiteSettingsController extends Controller
             source: 'platform',
         );
 
-        $result = $client->getPhoneNumber($credentials);
+        try {
+            $result = $client->getPhoneNumber($credentials);
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first()
+                ?: 'Meta WhatsApp connection test failed.';
+
+            return redirect()
+                ->route('site-settings.index', ['tab' => 'messaging'])
+                ->with('error', $message);
+        }
+
         $display = $result['display_phone_number'] ?? $result['id'] ?? 'connected';
 
         return redirect()
