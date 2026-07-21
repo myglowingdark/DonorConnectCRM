@@ -8,12 +8,10 @@ use App\Models\Donation;
 use App\Models\Donor;
 use App\Models\DonorInteraction;
 use App\Models\Organization;
-use App\Models\OrganizationMessagingSetting;
-use App\Models\PlatformMessagingSetting;
 use App\Models\ReportRecipient;
 use App\Models\ReportSchedule;
+use App\Services\Messaging\MessageService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 
 class ReportMailService
@@ -174,37 +172,16 @@ class ReportMailService
 
     protected function dispatchMail(Organization $org, string $to, string $subject, string $body): void
     {
-        $orgSettings = OrganizationMessagingSetting::query()
-            ->firstOrCreate(['organization_id' => $org->id], ['email_enabled' => true]);
-        $platform = PlatformMessagingSetting::current();
+        $resolved = app(MessageService::class)->resolveOutboundMailer($org);
 
-        $fromEmail = $orgSettings->from_email ?: $platform->from_email;
-        $fromName = $orgSettings->from_name ?: ($platform->from_name ?: $org->name);
+        if (blank($resolved['from_email'])) {
+            throw new \RuntimeException('No From email is configured for outbound reports.');
+        }
 
-        $mailable = new OrgReportMail($subject, $body, $fromEmail, $fromName);
+        $mailable = new OrgReportMail($subject, $body, $resolved['from_email'], $resolved['from_name']);
 
-        if ($orgSettings->usesCustomSmtp()) {
-            Config::set('mail.mailers.org_smtp', [
-                'transport' => 'smtp',
-                'host' => $orgSettings->smtp_host,
-                'port' => $orgSettings->smtp_port ?: 587,
-                'encryption' => $orgSettings->smtp_encryption ?: 'tls',
-                'username' => $orgSettings->smtp_username,
-                'password' => $orgSettings->smtp_password,
-                'timeout' => null,
-            ]);
-            Mail::mailer('org_smtp')->to($to)->send($mailable);
-        } elseif ($platform->email_enabled && $platform->usesCustomSmtp()) {
-            Config::set('mail.mailers.platform_smtp', [
-                'transport' => 'smtp',
-                'host' => $platform->smtp_host,
-                'port' => $platform->smtp_port ?: 587,
-                'encryption' => $platform->smtp_encryption ?: 'tls',
-                'username' => $platform->smtp_username,
-                'password' => $platform->smtp_password,
-                'timeout' => null,
-            ]);
-            Mail::mailer('platform_smtp')->to($to)->send($mailable);
+        if ($resolved['mailer']) {
+            Mail::mailer($resolved['mailer'])->to($to)->send($mailable);
         } else {
             Mail::to($to)->send($mailable);
         }

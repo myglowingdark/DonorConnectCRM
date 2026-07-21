@@ -103,13 +103,14 @@ class DonorMessagingTest extends TestCase
             'message_template_id' => $template->id,
             'subject' => 'Hi {{name}}',
             'body' => 'Warm regards from {{org}} via {{volunteer}}',
-        ])->assertRedirect();
+        ])->assertRedirect()->assertSessionHas('warning');
 
         Mail::assertSent(DonorOutreachMail::class);
 
         $email = OutboundMessage::query()->where('channel', 'email')->first();
         $this->assertNotNull($email);
-        $this->assertSame(MessageStatus::Sent, $email->status);
+        // Default APP mailer is log/array — without org/platform SMTP this is not a real delivery.
+        $this->assertSame(MessageStatus::Logged, $email->status);
         $this->assertStringContainsString('Anita Mehta', (string) $email->subject);
         $this->assertStringContainsString('Hope Foundation', $email->body);
 
@@ -919,5 +920,78 @@ class DonorMessagingTest extends TestCase
             ->post(route('site-settings.messaging.smtp.test'))
             ->assertRedirect(route('site-settings.index', ['tab' => 'messaging']))
             ->assertSessionHas('success');
+    }
+
+    public function test_donor_email_uses_platform_from_when_falling_back_to_platform_smtp(): void
+    {
+        Mail::fake();
+
+        $org = Organization::factory()->create(['name' => 'Hope Foundation']);
+        $admin = User::factory()->orgAdmin()->create();
+        $admin->organizations()->attach($org->id, ['is_active' => true]);
+
+        // Org has a From address but no SMTP host — must not send with that From over platform SMTP.
+        OrganizationMessagingSetting::query()->create([
+            'organization_id' => $org->id,
+            'email_enabled' => true,
+            'from_email' => 'org-only@hope.test',
+            'from_name' => 'Hope Org From',
+        ]);
+
+        PlatformMessagingSetting::current()->update([
+            'email_enabled' => true,
+            'smtp_host' => 'smtp.platform.test',
+            'smtp_port' => 587,
+            'smtp_encryption' => 'tls',
+            'smtp_username' => 'platform',
+            'smtp_password' => 'secret',
+            'from_email' => 'platform@donorconnect.test',
+            'from_name' => 'DonorConnect Platform',
+        ]);
+
+        $donor = Donor::factory()->create([
+            'organization_id' => $org->id,
+            'email' => 'anita@example.com',
+        ]);
+
+        DonorAssignment::create([
+            'organization_id' => $org->id,
+            'donor_id' => $donor->id,
+            'volunteer_id' => $admin->id,
+            'assigned_by' => $admin->id,
+            'is_active' => true,
+        ]);
+
+        $template = MessageTemplate::create([
+            'organization_id' => $org->id,
+            'name' => 'Thanks',
+            'channel' => MessageChannel::Email,
+            'subject' => 'Hi {{name}}',
+            'body' => 'Hello from {{org}}',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin);
+        OrganizationContext::set($org->id);
+
+        $this->post(route('donors.messages.send', $donor), [
+            'channel' => 'email',
+            'message_template_id' => $template->id,
+            'subject' => 'Hi {{name}}',
+            'body' => 'Hello from {{org}}',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        Mail::assertSent(DonorOutreachMail::class, function (DonorOutreachMail $mail) {
+            return $mail->fromEmail === 'platform@donorconnect.test'
+                && $mail->fromName === 'DonorConnect Platform'
+                && str_contains($mail->bodyText, 'Hope Foundation');
+        });
+
+        $this->assertDatabaseHas('outbound_messages', [
+            'donor_id' => $donor->id,
+            'channel' => 'email',
+            'status' => MessageStatus::Sent->value,
+            'recipient' => 'anita@example.com',
+        ]);
     }
 }

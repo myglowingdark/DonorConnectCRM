@@ -100,7 +100,8 @@ export default function MessagingSettings({
                 <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
                     <h3 className="mb-1 font-semibold">Organization SMTP</h3>
                     <p className="mb-4 text-xs text-on-surface-variant">
-                        Optional. Leave blank to fall back to platform SMTP (super admin), then the app .env mailer.
+                        Optional. Leave host blank to use platform SMTP. When using platform SMTP, messages send from
+                        the platform From address (not a From-only org setting). Save before testing.
                     </p>
                     <div className="grid gap-3 md:grid-cols-2">
                         <input

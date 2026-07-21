@@ -377,51 +377,92 @@ class MessageService
     }
 
     /**
+     * Resolve the same mailer / From identity used for donor outreach and SMTP tests.
+     *
+     * @return array{
+     *     mailer: string|null,
+     *     from_email: string,
+     *     from_name: string,
+     *     source: string,
+     *     is_deliverable: bool
+     * }
+     */
+    public function resolveOutboundMailer(Organization $organization, ?OrganizationMessagingSetting $settings = null): array
+    {
+        $settings ??= $this->settingsFor($organization->id);
+        $platform = PlatformMessagingSetting::current();
+
+        if ($settings->usesCustomSmtp()) {
+            $this->configureSmtpMailer('org_smtp', $settings);
+
+            return [
+                'mailer' => 'org_smtp',
+                'from_email' => (string) $settings->from_email,
+                'from_name' => (string) ($settings->from_name ?: $organization->name),
+                'source' => 'organization SMTP',
+                'is_deliverable' => true,
+            ];
+        }
+
+        if ($platform->email_enabled && $platform->usesCustomSmtp()) {
+            $this->configureSmtpMailer('platform_smtp', $platform);
+
+            // From must match the SMTP account being used — do not mix org From with platform SMTP.
+            return [
+                'mailer' => 'platform_smtp',
+                'from_email' => (string) $platform->from_email,
+                'from_name' => (string) ($platform->from_name ?: $organization->name),
+                'source' => 'platform SMTP',
+                'is_deliverable' => true,
+            ];
+        }
+
+        $defaultMailer = (string) config('mail.default', 'log');
+        $fromEmail = (string) (config('mail.from.address') ?: '');
+        $fromName = (string) (config('mail.from.name') ?: config('app.name'));
+        $isLogLike = in_array($defaultMailer, ['log', 'array'], true);
+
+        return [
+            'mailer' => null,
+            'from_email' => $fromEmail,
+            'from_name' => $fromName,
+            'source' => 'default app mailer ('.$defaultMailer.')',
+            'is_deliverable' => ! $isLogLike && filled($fromEmail),
+        ];
+    }
+
+    /**
      * Send a test email using the same SMTP resolution as donor outreach.
      *
      * @return array{source: string, to: string, from: string}
      */
     public function sendOrgSmtpTestEmail(Organization $organization, string $toEmail): array
     {
-        $settings = $this->settingsFor($organization->id);
-        $platform = PlatformMessagingSetting::current();
+        $resolved = $this->resolveOutboundMailer($organization);
 
-        if ($settings->usesCustomSmtp()) {
-            $this->configureSmtpMailer('org_smtp', $settings);
-            $mailer = 'org_smtp';
-            $fromEmail = (string) $settings->from_email;
-            $fromName = $settings->from_name ?: $organization->name;
-            $source = 'organization SMTP';
-        } elseif ($platform->email_enabled && $platform->usesCustomSmtp()) {
-            $this->configureSmtpMailer('platform_smtp', $platform);
-            $mailer = 'platform_smtp';
-            $fromEmail = (string) $platform->from_email;
-            $fromName = $platform->from_name ?: $organization->name;
-            $source = 'platform SMTP';
-        } else {
-            $mailer = null;
-            $fromEmail = (string) (config('mail.from.address') ?: '');
-            $fromName = (string) (config('mail.from.name') ?: config('app.name'));
-            $source = 'default app mailer ('.config('mail.default').')';
-
-            if (blank($fromEmail)) {
-                throw ValidationException::withMessages([
-                    'smtp' => 'No SMTP is configured. Set organization or platform SMTP (host + from email), or MAIL_FROM_ADDRESS in .env.',
-                ]);
-            }
+        if (blank($resolved['from_email'])) {
+            throw ValidationException::withMessages([
+                'smtp' => 'No SMTP is configured. Set organization or platform SMTP (host + from email), or MAIL_FROM_ADDRESS in .env.',
+            ]);
         }
 
-        $body = "This is a test email from DRM confirming outbound email works via {$source}.";
+        if (! $resolved['is_deliverable']) {
+            throw ValidationException::withMessages([
+                'smtp' => 'No real SMTP is configured (current mailer is '.config('mail.default').'). Configure organization or platform SMTP first.',
+            ]);
+        }
 
-        $send = function ($message) use ($toEmail, $fromEmail, $fromName) {
+        $body = "This is a test email from DRM confirming outbound email works via {$resolved['source']}.";
+
+        $send = function ($message) use ($toEmail, $resolved) {
             $message->to($toEmail)
                 ->subject('DRM SMTP connection test')
-                ->from($fromEmail, $fromName);
+                ->from($resolved['from_email'], $resolved['from_name']);
         };
 
         try {
-            if ($mailer) {
-                Mail::mailer($mailer)->raw($body, $send);
+            if ($resolved['mailer']) {
+                Mail::mailer($resolved['mailer'])->raw($body, $send);
             } else {
                 Mail::raw($body, $send);
             }
@@ -432,9 +473,9 @@ class MessageService
         }
 
         return [
-            'source' => $source,
+            'source' => $resolved['source'],
             'to' => $toEmail,
-            'from' => $fromEmail,
+            'from' => $resolved['from_email'],
         ];
     }
 
@@ -451,6 +492,7 @@ class MessageService
             ]);
         }
 
+        // Reuse configureSmtpMailer so Mail::purge() clears any stale transport.
         $this->configureSmtpMailer('platform_smtp', $platform);
         $fromEmail = (string) $platform->from_email;
         $fromName = $platform->from_name ?: config('app.name');
@@ -546,7 +588,7 @@ class MessageService
     }
 
     /**
-     * @return array{status: MessageStatus, error?: string|null}
+     * @return array{status: MessageStatus, error?: string|null, provider_payload?: array<string, mixed>}
      */
     protected function dispatchEmail(
         OrganizationMessagingSetting $settings,
@@ -554,39 +596,69 @@ class MessageService
         OutboundMessage $message,
         ?MessageTemplate $template = null,
     ): array {
-        $platform = PlatformMessagingSetting::current();
+        $resolved = $this->resolveOutboundMailer($organization, $settings);
 
-        $fromEmail = $settings->from_email ?: $platform->from_email;
-        $fromName = $settings->from_name ?: ($platform->from_name ?: $organization->name);
+        if (blank($resolved['from_email'])) {
+            throw ValidationException::withMessages([
+                'body' => 'No From email is configured. Set organization or platform SMTP From address first.',
+            ]);
+        }
 
         $attachment = null;
         if ($template?->has_attachment && $template->absoluteAttachmentPath()) {
-            $attachment = [
-                'path' => $template->absoluteAttachmentPath(),
-                'name' => $template->attachment_filename,
-                'mime' => $template->attachment_mime,
-            ];
+            $path = $template->absoluteAttachmentPath();
+            if ($path && is_readable($path)) {
+                $attachment = [
+                    'path' => $path,
+                    'name' => $template->attachment_filename,
+                    'mime' => $template->attachment_mime,
+                ];
+            } elseif ($template->has_attachment) {
+                Log::warning('Donor email template attachment missing on disk', [
+                    'template_id' => $template->id,
+                    'attachment_path' => $template->attachment_path,
+                ]);
+            }
         }
 
         $mailable = new DonorOutreachMail(
             subjectLine: $message->subject ?: ('Message from '.$organization->name),
             bodyText: $message->body,
-            fromEmail: $fromEmail,
-            fromName: $fromName,
+            fromEmail: $resolved['from_email'],
+            fromName: $resolved['from_name'],
             attachment: $attachment,
         );
 
-        if ($settings->usesCustomSmtp()) {
-            $this->configureSmtpMailer('org_smtp', $settings);
-            Mail::mailer('org_smtp')->to($message->recipient)->send($mailable);
-        } elseif ($platform->email_enabled && $platform->usesCustomSmtp()) {
-            $this->configureSmtpMailer('platform_smtp', $platform);
-            Mail::mailer('platform_smtp')->to($message->recipient)->send($mailable);
-        } else {
-            Mail::to($message->recipient)->send($mailable);
+        try {
+            if ($resolved['mailer']) {
+                Mail::mailer($resolved['mailer'])->to($message->recipient)->send($mailable);
+            } else {
+                Mail::to($message->recipient)->send($mailable);
+            }
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages([
+                'body' => 'SMTP rejected the donor email: '.$e->getMessage(),
+            ]);
         }
 
-        return ['status' => MessageStatus::Sent];
+        if (! $resolved['is_deliverable']) {
+            return [
+                'status' => MessageStatus::Logged,
+                'error' => 'No real SMTP configured — message written to the app mail log only. Configure organization or platform SMTP.',
+                'provider_payload' => [
+                    'source' => $resolved['source'],
+                    'from' => $resolved['from_email'],
+                ],
+            ];
+        }
+
+        return [
+            'status' => MessageStatus::Sent,
+            'provider_payload' => [
+                'source' => $resolved['source'],
+                'from' => $resolved['from_email'],
+            ],
+        ];
     }
 
     /**
@@ -603,6 +675,9 @@ class MessageService
             'password' => $smtp->smtp_password,
             'timeout' => null,
         ]);
+
+        // Drop any previously resolved mailer instance so runtime Config::set is applied.
+        Mail::purge($mailer);
     }
 
     /**

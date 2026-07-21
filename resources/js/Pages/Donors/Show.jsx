@@ -319,9 +319,24 @@ export default function DonorShow({
                         <p className="mb-4 text-xs text-on-surface-variant">
                             Email, WhatsApp, or short SMS from this organization only.
                             {hasWhatsAppFeature
-                                ? ' WhatsApp sends require an approved Meta template.'
+                                ? ' WhatsApp messages require an approved Meta template.'
                                 : ''}
                         </p>
+                        {flash?.success && (
+                            <p className="mb-3 rounded-xl bg-secondary/10 px-3 py-2 text-sm text-secondary">
+                                {flash.success}
+                            </p>
+                        )}
+                        {flash?.warning && (
+                            <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                                {flash.warning}
+                            </p>
+                        )}
+                        {flash?.error && (
+                            <p className="mb-3 rounded-xl bg-error/10 px-3 py-2 text-sm text-error">
+                                {flash.error}
+                            </p>
+                        )}
                         {!messagingChannels.length ? (
                             <p className="text-sm text-on-surface-variant">
                                 No messaging channels enabled. Ask an admin to configure Messaging.

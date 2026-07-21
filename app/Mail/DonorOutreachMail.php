@@ -37,8 +37,12 @@ class DonorOutreachMail extends Mailable
 
     public function content(): Content
     {
+        $safe = e($this->bodyText);
+
         return new Content(
-            htmlString: nl2br(e($this->bodyText)),
+            htmlString: '<div style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#111">'
+                .nl2br($safe)
+                .'</div>',
         );
     }
 

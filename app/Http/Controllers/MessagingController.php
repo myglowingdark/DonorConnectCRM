@@ -442,8 +442,18 @@ class MessagingController extends Controller
 
         $label = $message->channel->label();
         $status = $message->status->label();
+        $source = data_get($message->provider_payload, 'source');
 
-        return back()->with('success', "{$label} message {$status}.");
+        if ($message->status === \App\Enums\MessageStatus::Logged) {
+            return back()->with(
+                'warning',
+                "{$label} message was saved but not delivered ({$message->error_message}).",
+            );
+        }
+
+        $detail = $source ? " via {$source}" : '';
+
+        return back()->with('success', "{$label} message {$status} to {$message->recipient}{$detail}.");
     }
 
     public function history(Request $request, Donor $donor): Response
